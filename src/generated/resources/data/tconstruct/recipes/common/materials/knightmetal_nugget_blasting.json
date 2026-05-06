@@ -1,7 +1,7 @@
 {
-  "type": "minecraft:smelting",
+  "type": "minecraft:blasting",
   "category": "misc",
-  "cookingtime": 50,
+  "cookingtime": 25,
   "experience": 0.2,
   "ingredient": {
     "tag": "forge:raw_nuggets/knightmetal"
