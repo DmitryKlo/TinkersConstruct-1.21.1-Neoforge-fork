@@ -1,5 +1,5 @@
 {
-  "type": "tconstruct:tinker_station_part_swapping",
+  "type": "tconstruct:tool_material_swapping",
   "max_stack_size": 16,
   "tools": {
     "type": "forge:difference",
@@ -7,7 +7,7 @@
       "tag": "tconstruct:modifiable/multipart"
     },
     "subtracted": {
-      "tag": "tconstruct:modifiable/unswappable/parts"
+      "tag": "tconstruct:modifiable/unswappable/tools"
     }
   }
 }
