@@ -25,12 +25,13 @@ import slimeknights.tconstruct.library.modifiers.ModifierId;
 import slimeknights.tconstruct.library.tools.helper.ModifierUtil;
 import slimeknights.tconstruct.tools.TinkerModifiers;
 
+import java.lang.reflect.Constructor;
 import java.util.List;
 import java.util.Set;
 
 /** Boosts drop rates based on modifier level */
 public class ModifierBonusLootFunction extends LootItemConditionalFunction {
-  public static final MapCodec<ModifierBonusLootFunction> CODEC = MapCodec.unit(() -> new ModifierBonusLootFunction(List.of(), ModifierId.EMPTY, new OreDrops(), true));
+  public static final MapCodec<ModifierBonusLootFunction> CODEC = MapCodec.unit(() -> new ModifierBonusLootFunction(List.of(), ModifierId.EMPTY, oreDropsFormula(), true));
 
   /** Modifier ID to use for multiplier bonus */
   private final ModifierId modifier;
@@ -53,17 +54,17 @@ public class ModifierBonusLootFunction extends LootItemConditionalFunction {
 
   /** Creates a builder for the binomial with bonus formula */
   public static Builder<?> binomialWithBonusCount(ModifierId modifier, float probability, int extra, boolean includeBase) {
-    return builder(modifier, new BinomialWithBonusCount(extra, probability), includeBase);
+    return builder(modifier, binomialFormula(extra, probability), includeBase);
   }
 
   /** Creates a builder for the ore drops formula */
   public static Builder<?> oreDrops(ModifierId modifier, boolean includeBase) {
-    return builder(modifier, new OreDrops(), includeBase);
+    return builder(modifier, oreDropsFormula(), includeBase);
   }
 
   /** Creates a builder for the uniform bonus count */
   public static Builder<?> uniformBonusCount(ModifierId modifier, int bonusMultiplier, boolean includeBase) {
-    return builder(modifier, new UniformBonusCount(bonusMultiplier), includeBase);
+    return builder(modifier, uniformFormula(bonusMultiplier), includeBase);
   }
 
   @Override
@@ -90,15 +91,37 @@ public class ModifierBonusLootFunction extends LootItemConditionalFunction {
 
   private static Formula parseFormula(ResourceLocation id, JsonObject parameters, JsonDeserializationContext context) {
     if (id.equals(BinomialWithBonusCount.TYPE)) {
-      return new BinomialWithBonusCount(GsonHelper.getAsInt(parameters, "extra", 0), GsonHelper.getAsFloat(parameters, "probability", 0.5f));
+      return binomialFormula(GsonHelper.getAsInt(parameters, "extra", 0), GsonHelper.getAsFloat(parameters, "probability", 0.5f));
     }
     if (id.equals(UniformBonusCount.TYPE)) {
-      return new UniformBonusCount(GsonHelper.getAsInt(parameters, "bonusMultiplier", 1));
+      return uniformFormula(GsonHelper.getAsInt(parameters, "bonusMultiplier", 1));
     }
     if (id.equals(OreDrops.TYPE)) {
-      return new OreDrops();
+      return oreDropsFormula();
     }
     throw new JsonParseException("Invalid formula id: " + id);
+  }
+
+  private static Formula binomialFormula(int extra, float probability) {
+    return createFormula(BinomialWithBonusCount.class, new Class<?>[] { int.class, float.class }, extra, probability);
+  }
+
+  private static Formula uniformFormula(int bonusMultiplier) {
+    return createFormula(UniformBonusCount.class, new Class<?>[] { int.class }, bonusMultiplier);
+  }
+
+  private static Formula oreDropsFormula() {
+    return createFormula(OreDrops.class, new Class<?>[0]);
+  }
+
+  private static Formula createFormula(Class<? extends Formula> type, Class<?>[] parameterTypes, Object... args) {
+    try {
+      Constructor<? extends Formula> constructor = type.getDeclaredConstructor(parameterTypes);
+      constructor.setAccessible(true);
+      return constructor.newInstance(args);
+    } catch (ReflectiveOperationException e) {
+      throw new IllegalStateException("Failed to create loot bonus formula " + type.getSimpleName(), e);
+    }
   }
 
   /** Serializer class */

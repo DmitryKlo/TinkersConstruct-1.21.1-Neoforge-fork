@@ -24,12 +24,13 @@ import slimeknights.mantle.util.JsonHelper;
 import slimeknights.tconstruct.tools.TinkerModifiers;
 import slimeknights.tconstruct.tools.modifiers.traits.skull.ChrysophiliteModifier;
 
+import java.lang.reflect.Constructor;
 import java.util.List;
 import java.util.Set;
 
 /** Loot modifier to boost drops based on teh chrysophilite amount */
 public class ChrysophiliteBonusFunction extends LootItemConditionalFunction {
-  public static final MapCodec<ChrysophiliteBonusFunction> CODEC = MapCodec.unit(() -> new ChrysophiliteBonusFunction(List.of(), new OreDrops(), true));
+  public static final MapCodec<ChrysophiliteBonusFunction> CODEC = MapCodec.unit(() -> new ChrysophiliteBonusFunction(List.of(), oreDropsFormula(), true));
   public static final Serializer SERIALIZER = new Serializer();
 
   /** Formula to apply */
@@ -49,17 +50,17 @@ public class ChrysophiliteBonusFunction extends LootItemConditionalFunction {
 
   /** Creates a builder for the binomial with bonus formula */
   public static Builder<?> binomialWithBonusCount(float probability, int extra, boolean includeBase) {
-    return builder(new BinomialWithBonusCount(extra, probability), includeBase);
+    return builder(binomialFormula(extra, probability), includeBase);
   }
 
   /** Creates a builder for the ore drops formula */
   public static Builder<?> oreDrops(boolean includeBase) {
-    return builder(new OreDrops(), includeBase);
+    return builder(oreDropsFormula(), includeBase);
   }
 
   /** Creates a builder for the uniform bonus count */
   public static Builder<?> uniformBonusCount(int bonusMultiplier, boolean includeBase) {
-    return builder(new UniformBonusCount(bonusMultiplier), includeBase);
+    return builder(uniformFormula(bonusMultiplier), includeBase);
   }
 
   @Override
@@ -86,15 +87,37 @@ public class ChrysophiliteBonusFunction extends LootItemConditionalFunction {
 
   private static Formula parseFormula(ResourceLocation id, JsonObject parameters, JsonDeserializationContext context) {
     if (id.equals(BinomialWithBonusCount.TYPE)) {
-      return new BinomialWithBonusCount(GsonHelper.getAsInt(parameters, "extra", 0), GsonHelper.getAsFloat(parameters, "probability", 0.5f));
+      return binomialFormula(GsonHelper.getAsInt(parameters, "extra", 0), GsonHelper.getAsFloat(parameters, "probability", 0.5f));
     }
     if (id.equals(UniformBonusCount.TYPE)) {
-      return new UniformBonusCount(GsonHelper.getAsInt(parameters, "bonusMultiplier", 1));
+      return uniformFormula(GsonHelper.getAsInt(parameters, "bonusMultiplier", 1));
     }
     if (id.equals(OreDrops.TYPE)) {
-      return new OreDrops();
+      return oreDropsFormula();
     }
     throw new JsonParseException("Invalid formula id: " + id);
+  }
+
+  private static Formula binomialFormula(int extra, float probability) {
+    return createFormula(BinomialWithBonusCount.class, new Class<?>[] { int.class, float.class }, extra, probability);
+  }
+
+  private static Formula uniformFormula(int bonusMultiplier) {
+    return createFormula(UniformBonusCount.class, new Class<?>[] { int.class }, bonusMultiplier);
+  }
+
+  private static Formula oreDropsFormula() {
+    return createFormula(OreDrops.class, new Class<?>[0]);
+  }
+
+  private static Formula createFormula(Class<? extends Formula> type, Class<?>[] parameterTypes, Object... args) {
+    try {
+      Constructor<? extends Formula> constructor = type.getDeclaredConstructor(parameterTypes);
+      constructor.setAccessible(true);
+      return constructor.newInstance(args);
+    } catch (ReflectiveOperationException e) {
+      throw new IllegalStateException("Failed to create loot bonus formula " + type.getSimpleName(), e);
+    }
   }
 
   /** Serializer class */
