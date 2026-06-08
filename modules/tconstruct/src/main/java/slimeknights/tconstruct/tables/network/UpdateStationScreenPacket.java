@@ -1,0 +1,35 @@
+package slimeknights.tconstruct.tables.network;
+
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
+import slimeknights.mantle.network.packet.IThreadsafePacket;
+import slimeknights.tconstruct.TConstruct;
+
+public class UpdateStationScreenPacket implements IThreadsafePacket {
+  public static final UpdateStationScreenPacket INSTANCE = new UpdateStationScreenPacket();
+  public static final CustomPacketPayload.Type<UpdateStationScreenPacket> TYPE = new CustomPacketPayload.Type<>(TConstruct.getResource("update_station_screen"));
+  public static final StreamCodec<RegistryFriendlyByteBuf, UpdateStationScreenPacket> STREAM_CODEC = StreamCodec.unit(INSTANCE);
+
+  private UpdateStationScreenPacket() {}
+
+  @Override
+  public void encode(FriendlyByteBuf packetBuffer) {}
+
+  @Override
+  public Type<? extends CustomPacketPayload> type() {
+    return TYPE;
+  }
+
+  @Override
+  public void handleThreadsafe(IPayloadContext context) {
+    HandleClient.handle();
+  }
+
+  /** Safely runs client side only code in a method only called on client */
+  private static class HandleClient {
+    private static void handle() {}
+  }
+}

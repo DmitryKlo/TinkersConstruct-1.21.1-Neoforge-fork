@@ -1,25 +1,28 @@
+Tconstrict 1.21.1 non-official port (made with AI)
+===================================================
 
-Installation information
-=======
+This is an unofficial fork/port of TConstruct/tconstrict for Minecraft 1.21.1 on NeoForge, based on the SlimeKnights Tinkers' Construct codebase.
 
-This template repository can be directly cloned to get you started with a new
-mod. Simply create a new repository cloned from this one, by following the
-instructions provided by [GitHub](https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-repository-from-a-template).
+Upstream project: https://github.com/SlimeKnights/TinkersConstruct
 
-Once you have your clone, simply open the repository in the IDE of your choice. The usual recommendation for an IDE is either IntelliJ IDEA or Eclipse.
+The project was developed with help from Cursor and Codex. It is still in active development and active beta. Expect bugs, incomplete systems, broken edge cases, and issues caused by AI-assisted porting work.
 
-If at any point you are missing libraries in your IDE, or you've run into problems you can
-run `gradlew --refresh-dependencies` to refresh the local cache. `gradlew clean` to reset everything 
-{this does not affect your code} and then start the process again.
+This repository is not an official Slime Knights release and is not affiliated with or endorsed by Slime Knights. The goal is to preserve and port the gameplay for testing and development while clearly marking this as an unofficial project.
 
-Mapping Names:
-============
-By default, the MDK is configured to use the official mapping names from Mojang for methods and fields 
-in the Minecraft codebase. These names are covered by a specific license. All modders should be aware of this
-license. For the latest license text, refer to the mapping file itself, or the reference copy here:
-https://github.com/NeoForged/NeoForm/blob/main/Mojang.md
+Beta testing
+------------
 
-Additional Resources: 
-==========
-Community Documentation: https://docs.neoforged.net/  
-NeoForged Discord: https://discord.neoforged.net/
+You are welcome to help test the mod. Please open GitHub issues for crashes, broken mechanics, incorrect recipes, rendering problems, missing translations, server/client desyncs, and any other bugs you find.
+
+Useful issue details:
+
+- Minecraft, NeoForge, Mantle, and mod versions
+- client or dedicated server
+- crash report or latest.log
+- exact reproduction steps
+- screenshots or short videos for rendering/UI bugs
+
+License
+-------
+
+This port is distributed under the MIT License. See LICENSE.

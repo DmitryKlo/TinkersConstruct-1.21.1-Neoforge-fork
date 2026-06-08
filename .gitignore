@@ -24,3 +24,36 @@ runs
 run-data
 
 repo
+
+# local debug/output artifacts
+*.log
+*.txt
+*.md
+!/README.md
+.tmp-*/
+**/.cache/
+/logs
+/config
+/reports
+/porting
+/tools
+/assets
+/mods
+/defaultconfigs
+/neoforge.mixins.json
+/pack.mcmeta
+/forge.exc
+/forge.sas
+/forge.srg
+/settings.gradle~
+/url.png
+/.vscode
+
+# agent/debug context files are intentionally not published
+AGENT*
+Agent_*
+Error_*
+PORT*
+Port_*
+compile-*
+fluids-*

@@ -1,0 +1,131 @@
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+    id 'net.neoforged.moddev' version '2.0.139'
+    id 'idea'
+}
+
+version = tconstruct_mod_version
+group = tconstruct_group_id
+
+base {
+    archivesName = tconstruct_mod_id
+}
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
+repositories {
+    mavenCentral()
+    maven {
+        name = 'NeoForge'
+        url = 'https://maven.neoforged.net/releases'
+    }
+    maven {
+        name = 'BlameJared Maven'
+        url = 'https://maven.blamejared.com/'
+    }
+}
+
+neoForge {
+    version = rootProject.neo_version
+
+    parchment {
+        mappingsVersion = rootProject.parchment_mappings_version
+        minecraftVersion = rootProject.parchment_minecraft_version
+    }
+
+    accessTransformers = project.files('src/main/resources/META-INF/accesstransformer.cfg')
+
+    mods {
+        "${tconstruct_mod_id}" {
+            sourceSet(sourceSets.main)
+        }
+    }
+}
+
+sourceSets.main.resources {
+    srcDir 'src/generated/resources'
+    srcDir rootProject.file('porting/upstream/tconstruct-1.20.1/src/main/resources')
+    srcDir rootProject.file('porting/upstream/tconstruct-1.20.1/src/generated/resources')
+    exclude '.cache'
+    exclude 'pack.mcmeta'
+    exclude 'META-INF/accesstransformer.cfg'
+    exclude 'data/tconstruct/recipes/**'
+}
+
+tasks.named('processResources', ProcessResources).configure {
+    from('src/main/resources/pack.mcmeta')
+    from(rootProject.file('porting/upstream/tconstruct-1.20.1/src/main/resources/data/tconstruct/recipes')) {
+        include 'smeltery/melting/metal/iron/ingot.json'
+        include 'smeltery/melting/metal/iron/nugget.json'
+        include 'smeltery/melting/metal/iron/block.json'
+        include 'smeltery/melting/metal/iron/raw.json'
+        include 'smeltery/melting/metal/iron/raw_block.json'
+        into 'data/tconstruct/recipe'
+    }
+    from(rootProject.file('porting/upstream/tconstruct-1.20.1/src/generated/resources/data/tconstruct/recipes')) {
+        include 'smeltery/melting/metal/iron/ingot.json'
+        include 'smeltery/melting/metal/iron/nugget.json'
+        include 'smeltery/melting/metal/iron/block.json'
+        include 'smeltery/melting/metal/iron/raw.json'
+        include 'smeltery/melting/metal/iron/raw_block.json'
+        into 'data/tconstruct/recipe'
+    }
+}
+
+sourceSets.main.java {
+    exclude '**/plugin/craftingtweaks/**'
+    exclude '**/plugin/DietPlugin.java'
+    exclude '**/plugin/DummmmmmyPlugin.java'
+    exclude '**/plugin/ImmersiveEngineeringPlugin.java'
+    exclude '**/plugin/jsonthings/**'
+}
+
+dependencies {
+    implementation project(':mantle')
+
+    def lombokVersion = '1.18.42'
+    compileOnly "org.projectlombok:lombok:${lombokVersion}"
+    annotationProcessor "org.projectlombok:lombok:${lombokVersion}"
+
+    compileOnly "mezz.jei:jei-${rootProject.minecraft_version}-common-api:${jei_version}"
+    compileOnly "mezz.jei:jei-${rootProject.minecraft_version}-neoforge-api:${jei_version}"
+}
+
+var generateTConstructModMetadata = tasks.register('generateTConstructModMetadata', ProcessResources) {
+    var replaceProperties = [
+            minecraft_version_range: rootProject.minecraft_version_range,
+            neo_version            : rootProject.neo_version,
+            loader_version_range   : rootProject.loader_version_range,
+            mod_id                 : tconstruct_mod_id,
+            mod_name               : tconstruct_mod_name,
+            mod_license            : tconstruct_mod_license,
+            mod_version            : tconstruct_mod_version,
+            mod_authors            : tconstruct_mod_authors,
+            mod_description        : tconstruct_mod_description,
+    ]
+    inputs.properties replaceProperties
+    expand replaceProperties
+    from 'src/main/templates'
+    into 'build/generated/sources/modMetadata'
+}
+
+sourceSets.main.resources.srcDir generateTConstructModMetadata
+neoForge.ideSyncTask generateTConstructModMetadata
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.compilerArgs += ['-Xmaxerrs', '100000', '-Xmaxwarns', '100000']
+}
+
+java {
+    withSourcesJar()
+}
+
+publishing {
+    publications {
+        register('mavenJava', MavenPublication) {
+            from components.java
+        }
+    }
+}
