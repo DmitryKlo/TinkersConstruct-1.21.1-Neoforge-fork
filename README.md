@@ -5,6 +5,8 @@ This repository is an unofficial Minecraft 1.21.1 NeoForge port based on the Sli
 
 Upstream project: https://github.com/SlimeKnights/TinkersConstruct
 
+This port was developed with the help of Codex and Cursor agents.
+
 This repository is not an official Slime Knights release and is not affiliated with or endorsed by Slime Knights. The goal is to preserve the Tinkers' Construct gameplay loop for testing and development on Minecraft 1.21.1.
 
 Status
