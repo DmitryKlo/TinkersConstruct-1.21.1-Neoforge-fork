@@ -46,6 +46,8 @@ neoForge {
 sourceSets.main.resources {
     srcDir 'src/generated/resources'
     exclude '.cache'
+    exclude 'data/mantle/tags/blocks/**'
+    exclude 'data/mantle/tags/fluids/**'
 }
 
 dependencies {

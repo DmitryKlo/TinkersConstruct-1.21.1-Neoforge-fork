@@ -3,6 +3,7 @@ package slimeknights.tconstruct.smeltery.block.entity.tank;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
@@ -59,7 +60,7 @@ public class CastingFluidHandler implements IFluidHandler {
 
     // update filter and capacity
     int capacity = this.capacity;
-    if (filter == null || this.capacity == 0) {
+    if (filter == Fluids.EMPTY || this.capacity == 0) {
       Fluid fluid = resource.getFluid();
       capacity = tile.initNewCasting(resource, action);
       if (capacity <= 0) {
@@ -173,10 +174,10 @@ public class CastingFluidHandler implements IFluidHandler {
   private static final String TAG_CAPACITY = "capacity";
 
   /** Reads the tank from Tag */
-  public void readFromTag(CompoundTag nbt) {
+  public void readFromTag(CompoundTag nbt, HolderLookup.Provider registries) {
     capacity = nbt.getInt(TAG_CAPACITY);
     if (nbt.contains(TAG_FLUID, Tag.TAG_COMPOUND)) {
-      setFluid(FluidStack.parseOptional(tile.getLevel().registryAccess(), nbt.getCompound(TAG_FLUID)));
+      setFluid(FluidStack.parseOptional(registries, nbt.getCompound(TAG_FLUID)));
     }
     if (nbt.contains(TAG_FILTER, Tag.TAG_STRING)) {
       Fluid fluid = ForgeRegistries.FLUIDS.getValue(ResourceLocation.parse(nbt.getString(TAG_FILTER)));

@@ -1,5 +1,6 @@
 package slimeknights.mantle;
 
+import com.mojang.serialization.MapCodec;
 import net.minecraft.Util;
 import net.minecraft.commands.synchronization.ArgumentTypeInfos;
 import net.minecraft.core.HolderLookup;
@@ -21,11 +22,15 @@ import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.common.conditions.ICondition;
 import slimeknights.mantle.util.CraftingHelper;
 import net.neoforged.neoforge.common.data.ExistingFileHelper;
 import net.neoforged.neoforge.data.event.GatherDataEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.registries.RegisterEvent;
+import net.neoforged.neoforge.registries.DeferredHolder;
+import net.neoforged.neoforge.registries.DeferredRegister;
+import net.neoforged.neoforge.registries.NeoForgeRegistries;
 import slimeknights.mantle.registration.SimpleForgeRegistry;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -94,6 +99,10 @@ public class Mantle {
   public static final Logger logger = LogManager.getLogger("Mantle");
   /** Namespace for common tags, used for easier migration to the future "c" standard */
   public static final String COMMON = "forge";
+  private static final DeferredRegister<MapCodec<? extends ICondition>> CONDITION_CODECS = DeferredRegister.create(NeoForgeRegistries.Keys.CONDITION_CODECS, modId);
+  public static final DeferredHolder<MapCodec<? extends ICondition>, MapCodec<TagEmptyCondition<?>>> TAG_EMPTY_CONDITION = CONDITION_CODECS.register("tag_empty", () -> TagEmptyCondition.CODEC);
+  public static final DeferredHolder<MapCodec<? extends ICondition>, MapCodec<TagFilledCondition<?>>> TAG_FILLED_CONDITION = CONDITION_CODECS.register("tag_filled", () -> TagFilledCondition.CODEC);
+  public static final DeferredHolder<MapCodec<? extends ICondition>, MapCodec<TagCombinationCondition<?>>> TAG_COMBINATION_CONDITION = CONDITION_CODECS.register("tag_combination_filled", () -> TagCombinationCondition.CODEC);
 
   /* Instance of this mod, used for grabbing prototype fields */
   public static Mantle instance;
@@ -105,6 +114,7 @@ public class Mantle {
 
     FluidContainerTransferManager.INSTANCE.init();
     MantleTags.init();
+    CONDITION_CODECS.register(bus);
 
     instance = this;
     bus.addListener(EventPriority.NORMAL, false, FMLCommonSetupEvent.class, this::commonSetup);

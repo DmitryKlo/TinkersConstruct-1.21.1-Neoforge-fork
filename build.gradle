@@ -19,6 +19,18 @@ group = mod_group_id
 
 repositories {
     // Add here additional repositories if required by some of the dependencies below.
+    mavenCentral()
+    maven {
+        name = 'BlameJared Maven'
+        url = 'https://maven.blamejared.com/'
+    }
+    maven {
+        name = 'Modrinth Maven'
+        url = 'https://api.modrinth.com/maven'
+        content {
+            includeGroup 'maven.modrinth'
+        }
+    }
     maven {
         name = "NeoForge Mirror"
         url = "https://mirrors.huaweicloud.com/neoforged/"
@@ -124,6 +136,9 @@ sourceSets.main.resources { srcDir 'src/generated/resources' }
 // a dependency that will be present for runtime testing but that is
 // "optional", meaning it will not be pulled by dependents of this mod.
 configurations {
+    clientLocalRuntime {
+        canBeConsumed = false
+    }
     runtimeClasspath.extendsFrom localRuntime
 }
 
@@ -131,12 +146,10 @@ dependencies {
     implementation project(':mantle')
     implementation project(':tconstruct')
 
-    // Example optional mod dependency with JEI
-    // The JEI API is declared for compile time use, while the full JEI artifact is used at runtime
-    // compileOnly "mezz.jei:jei-${mc_version}-common-api:${jei_version}"
-    // compileOnly "mezz.jei:jei-${mc_version}-neoforge-api:${jei_version}"
-    // We add the full version to localRuntime, not runtimeOnly, so that we do not publish a dependency on it
-    // localRuntime "mezz.jei:jei-${mc_version}-neoforge:${jei_version}"
+    def runtimeJeiVersion = project(':tconstruct').findProperty('jei_version') ?: '19.21.0.247'
+    localRuntime "mezz.jei:jei-${minecraft_version}-neoforge:${runtimeJeiVersion}"
+    def runtimeJadeVersionId = project(':tconstruct').findProperty('jade_version_id') ?: 'yd8FKCmx'
+    clientLocalRuntime "maven.modrinth:nvQzSEkH:${runtimeJadeVersionId}"
 
     // Example mod dependency using a mod jar from ./libs with a flat dir repository
     // This maps to ./libs/coolmod-${mc_version}-${coolmod_version}.jar
@@ -152,6 +165,25 @@ dependencies {
     // For more info:
     // http://www.gradle.org/docs/current/userguide/artifact_dependencies_tutorial.html
     // http://www.gradle.org/docs/current/userguide/dependency_management.html
+}
+
+tasks.named('runClient').configure {
+    getClasspathProvider().from(configurations.clientLocalRuntime)
+}
+
+tasks.register('installModJars', Sync) {
+    group = 'build'
+    description = 'Collects the built mod jars and configured runtime mod jars into build/install/mods.'
+
+    dependsOn project(':mantle').tasks.named('jar')
+    dependsOn project(':tconstruct').tasks.named('jar')
+
+    into layout.buildDirectory.dir('install/mods')
+    from(project(':mantle').tasks.named('jar').flatMap { it.archiveFile })
+    from(project(':tconstruct').tasks.named('jar').flatMap { it.archiveFile })
+    from(configurations.localRuntime)
+    from(configurations.clientLocalRuntime)
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
 // This block of code expands all declared replace properties in the specified resource targets.

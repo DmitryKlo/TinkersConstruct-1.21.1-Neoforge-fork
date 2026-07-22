@@ -30,7 +30,6 @@ repo
 *.log
 *.txt
 *.md
-!/README.md
 .tmp-*/
 **/.cache/
 /logs
@@ -49,12 +48,3 @@ repo
 /settings.gradle~
 /url.png
 /.vscode
-
-# agent/debug context files are intentionally not published
-AGENT*
-Agent_*
-Error_*
-PORT*
-Port_*
-compile-*
-fluids-*

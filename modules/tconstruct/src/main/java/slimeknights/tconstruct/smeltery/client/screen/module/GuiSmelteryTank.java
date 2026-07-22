@@ -57,7 +57,7 @@ public class GuiSmelteryTank implements IScreenWithFluidTank {
   private int[] calcLiquidHeights(boolean refresh) {
     assert tank != null;
     if (liquidHeights == null || refresh) {
-      liquidHeights = calcLiquidHeights(tank.getFluids(), Math.max(tank.getContained(), tank.getCapacity()), height, 3);
+      liquidHeights = calcLiquidHeights(tank.getFluids(), Math.max(tank.getContained(), tank.getCapacity()), height, 1);
     }
     return liquidHeights;
   }
@@ -83,10 +83,12 @@ public class GuiSmelteryTank implements IScreenWithFluidTank {
 
       int bottom = y + height;
       for (int i = 0; i < heights.length; i++) {
-        int fluidH = heights[i];
-        FluidStack liquid = tank.getFluids().get(i);
-        GuiUtil.renderTiledFluid(matrices, parent, liquid, x, bottom - fluidH, width, fluidH, 100);
-        bottom -= fluidH;
+        int fluidH = Math.min(heights[i], bottom - y);
+        if (fluidH > 0) {
+          FluidStack liquid = tank.getFluids().get(i);
+          GuiUtil.renderTiledFluid(matrices, parent, liquid, x, bottom - fluidH, width, fluidH, 100);
+          bottom -= fluidH;
+        }
       }
     } else if (liquidHeights != null && liquidHeights.length > 0) {
       liquidHeights = new int[0];
@@ -217,11 +219,12 @@ public class GuiSmelteryTank implements IScreenWithFluidTank {
     if (tank.getContained() > 0 && withinTank(checkX, checkY)) {
       // can't just use the helper as we need the location of the fluid
       int[] heights = calcLiquidHeights(false);
-      int y = this.y + height - 1;
+      int y = this.y + height;
       for (int i = 0; i < heights.length; i++) {
-        y -= heights[i];
-        if (y < checkY) {
-          return new FluidLocation(tank.getFluidInTank(i), new Rect2i(x, y, width, heights[i]));
+        int fluidHeight = heights[i];
+        y -= fluidHeight;
+        if (fluidHeight > 0 && y <= checkY) {
+          return new FluidLocation(tank.getFluidInTank(i), new Rect2i(x, y, width, fluidHeight));
         }
       }
     }
@@ -243,47 +246,81 @@ public class GuiSmelteryTank implements IScreenWithFluidTank {
   public static int[] calcLiquidHeights(List<FluidStack> liquids, int capacity, int height, int min) {
     int[] fluidHeights = new int[liquids.size()];
 
-    int totalFluidAmount = 0;
-    if (liquids.size() > 0) {
-      for(int i = 0; i < liquids.size(); i++) {
-        FluidStack liquid = liquids.get(i);
-
-        float h = (float) liquid.getAmount() / (float) capacity;
-        totalFluidAmount += liquid.getAmount();
-        fluidHeights[i] = Math.max(min, (int) Math.ceil(h * (float) height));
-      }
-
-      // if not completely full, leave a few pixels for the empty tank display
-      if(totalFluidAmount < capacity) {
-        height -= min;
-      }
-
-      // check if we have enough height to render everything, if not remove pixels from the tallest liquid
-      int sum;
-      do {
-        sum = 0;
-        int biggest = -1;
-        int m = 0;
-        for(int i = 0; i < fluidHeights.length; i++) {
-          sum += fluidHeights[i];
-          if(fluidHeights[i] > biggest) {
-            biggest = fluidHeights[i];
-            m = i;
-          }
-        }
-
-        // we can't get a result without going negative
-        if(fluidHeights[m] == 0) {
-          break;
-        }
-
-        // remove a pixel from the biggest one
-        if(sum > height) {
-          fluidHeights[m]--;
-        }
-      } while(sum > height);
+    if (liquids.isEmpty() || capacity <= 0 || height <= 0) {
+      return fluidHeights;
     }
 
+    long totalFluidAmount = 0;
+    int visibleFluids = 0;
+    for (FluidStack liquid : liquids) {
+      int amount = Math.max(0, liquid.getAmount());
+      if (amount > 0) {
+        totalFluidAmount += amount;
+        visibleFluids++;
+      }
+    }
+    if (totalFluidAmount <= 0) {
+      return fluidHeights;
+    }
+
+    int visibleMinimum = visibleFluids * Math.max(0, min);
+    int totalHeight = (int)Math.ceil((double)height * Math.min(totalFluidAmount, (long)capacity) / capacity);
+    totalHeight = Math.min(height, Math.max(Math.min(visibleMinimum, height), totalHeight));
+    if (totalHeight <= 0) {
+      return fluidHeights;
+    }
+
+    int preferredMin = Math.min(Math.max(0, min), totalHeight);
+    int minHeight = visibleFluids * preferredMin <= totalHeight ? preferredMin : 0;
+    long[] remainders = new long[liquids.size()];
+    int sum = 0;
+    for (int i = 0; i < liquids.size(); i++) {
+      int amount = Math.max(0, liquids.get(i).getAmount());
+      if (amount > 0) {
+        long scaled = (long)totalHeight * amount;
+        int liquidHeight = (int)(scaled / totalFluidAmount);
+        remainders[i] = scaled % totalFluidAmount;
+        if (minHeight > 0) {
+          liquidHeight = Math.max(minHeight, liquidHeight);
+        }
+        fluidHeights[i] = Math.min(totalHeight, liquidHeight);
+        sum += fluidHeights[i];
+      }
+    }
+
+    while (sum < totalHeight) {
+      int largestRemainder = -1;
+      for (int i = 0; i < remainders.length; i++) {
+        if (liquids.get(i).getAmount() > 0 && (largestRemainder == -1 || remainders[i] > remainders[largestRemainder])) {
+          largestRemainder = i;
+        }
+      }
+      if (largestRemainder == -1) {
+        break;
+      }
+      fluidHeights[largestRemainder]++;
+      remainders[largestRemainder] = -1;
+      sum++;
+    }
+
+    shrinkHeightsToFit(fluidHeights, sum, totalHeight);
     return fluidHeights;
+  }
+
+  /** Shrinks the tallest liquid segments until all liquids fit inside the target height. */
+  private static void shrinkHeightsToFit(int[] heights, int sum, int maxHeight) {
+    while (sum > maxHeight) {
+      int tallest = -1;
+      for (int i = 0; i < heights.length; i++) {
+        if (tallest == -1 || heights[i] > heights[tallest]) {
+          tallest = i;
+        }
+      }
+      if (tallest == -1 || heights[tallest] == 0) {
+        return;
+      }
+      heights[tallest]--;
+      sum--;
+    }
   }
 }

@@ -56,6 +56,8 @@ public class FancyItemFrameEntity extends ItemFrame {
 
   private static final int DIAMOND_TIMER = 300;
 
+  private static final EntityDataAccessor<Integer> ROTATION_ACCESSOR = findRotationAccessor();
+
   private static final EntityDataAccessor<Integer> VARIANT = SynchedEntityData.defineId(FancyItemFrameEntity.class, EntityDataSerializers.INT);
 
   private static final String TAG_VARIANT = "Variant";
@@ -246,7 +248,7 @@ public class FancyItemFrameEntity extends ItemFrame {
 
   private void setRotationRaw(int rotationIn, boolean updateComparator) {
 
-    this.getEntityData().set(DATA_ROTATION, rotationIn);
+    this.getEntityData().set(ROTATION_ACCESSOR, rotationIn);
 
     if (updateComparator) {
 
@@ -254,6 +256,17 @@ public class FancyItemFrameEntity extends ItemFrame {
 
     }
 
+  }
+
+  @SuppressWarnings("unchecked")
+  private static EntityDataAccessor<Integer> findRotationAccessor() {
+    try {
+      java.lang.reflect.Field field = ItemFrame.class.getDeclaredField("DATA_ROTATION");
+      field.setAccessible(true);
+      return (EntityDataAccessor<Integer>)field.get(null);
+    } catch (ReflectiveOperationException e) {
+      throw new IllegalStateException("Unable to access ItemFrame rotation data accessor", e);
+    }
   }
 
 
@@ -477,5 +490,4 @@ public class FancyItemFrameEntity extends ItemFrame {
   }
 
 }
-
 

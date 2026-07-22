@@ -8,6 +8,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.entity.player.Inventory;
+import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 import slimeknights.mantle.client.screen.ElementScreen;
 import slimeknights.mantle.client.screen.MultiModuleScreen;
 import slimeknights.tconstruct.TConstruct;
@@ -68,8 +69,8 @@ public class HeatingStructureScreen extends MultiModuleScreen<HeatingStructureCo
       addModule(sideInventory);
       FuelModule fuelModule = te.getFuelModule();
       // we have 2 slots before the melting slots - the bucket input and the bucket output
-      this.melting = new GuiMeltingModule(this, te.getMeltingInventory(), 2, fuelModule::getTemperature, sideInventory::shouldDrawSlot, BACKGROUND);
-      this.fuel = new GuiFuelModule(this, fuelModule, 152, 32, 16, 90, 153, 15, false, BACKGROUND);
+      this.melting = new GuiMeltingModule(this, te.getMeltingInventory(), 2, fuelModule::getTemperature, sideInventory::shouldDrawSlot, sideInventory::getSlotX, sideInventory::getSlotY, BACKGROUND);
+      this.fuel = new GuiFuelModule(this, fuelModule, 153, 33, 14, 88, 153, 15, false, BACKGROUND);
     } else {
       this.te = null;
       this.tank = null;
@@ -161,6 +162,11 @@ public class HeatingStructureScreen extends MultiModuleScreen<HeatingStructureCo
       boolean hasTank = false;
       if (te.getStructure() != null) {
         hasTank = te.getStructure().hasTanks();
+      }
+      FuelModule fuelModule = te.getFuelModule();
+      if (!hasTank && fuelModule != null) {
+        hasTank = fuelModule.hasFuel() || !fuelModule.getFuelInfos().isEmpty()
+            || (fuelModule instanceof IFluidHandler fluidHandler && fluidHandler.getTanks() > 0);
       }
       fuel.addTooltip(graphics, mouseX, mouseY, hasTank);
     }

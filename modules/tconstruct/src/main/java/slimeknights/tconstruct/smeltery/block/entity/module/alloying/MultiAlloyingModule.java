@@ -12,6 +12,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
+import java.util.ArrayList;
 import java.util.function.Predicate;
 
 /** Module to handle running alloys via a fluid handler, can alloy multiple recipes at once */
@@ -47,7 +48,11 @@ public class MultiAlloyingModule implements IAlloyingModule {
    */
   private List<AlloyRecipe> getRecipes() {
     if (lastRecipes == null) {
-      lastRecipes = getLevel().getRecipeManager().getRecipesFor(TinkerRecipeTypes.ALLOYING.get(), alloyTank, getLevel()).stream().map(holder -> holder.value()).toList();
+      Level level = getLevel();
+      lastRecipes = level.getRecipeManager().getAllRecipesFor(TinkerRecipeTypes.ALLOYING.get()).stream()
+        .map(holder -> holder.value())
+        .filter(recipe -> recipe.matches(alloyTank, level))
+        .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
     }
     return lastRecipes;
   }

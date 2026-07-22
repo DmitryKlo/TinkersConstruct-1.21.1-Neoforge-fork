@@ -92,6 +92,16 @@ public abstract class ModuleScreen<P extends MultiModuleScreen<?>, C extends Abs
     return true;
   }
 
+  /** Gets the slot X coordinate relative to the parent screen. */
+  public int getSlotX(Slot slot) {
+    return slot.x;
+  }
+
+  /** Gets the slot Y coordinate relative to the parent screen. */
+  public int getSlotY(Slot slot) {
+    return slot.y;
+  }
+
   public boolean isMouseInModule(int mouseX, int mouseY) {
     return mouseX >= this.leftPos && mouseX < this.guiRight() && mouseY >= this.topPos && mouseY < this.guiBottom();
   }

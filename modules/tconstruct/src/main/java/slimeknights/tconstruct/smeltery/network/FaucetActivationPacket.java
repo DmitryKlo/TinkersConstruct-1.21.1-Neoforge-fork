@@ -18,7 +18,7 @@ public class FaucetActivationPacket extends FluidUpdatePacket {
   public static final CustomPacketPayload.Type<FaucetActivationPacket> TYPE = new CustomPacketPayload.Type<>(TConstruct.getResource("faucet_activation"));
   public static final StreamCodec<RegistryFriendlyByteBuf, FaucetActivationPacket> STREAM_CODEC = StreamCodec.composite(
     BlockPos.STREAM_CODEC, packet -> packet.pos,
-    FluidStack.STREAM_CODEC, packet -> packet.fluid,
+    FluidStack.OPTIONAL_STREAM_CODEC, packet -> packet.fluid,
     ByteBufCodecs.BOOL, packet -> packet.isPouring,
     FaucetActivationPacket::new
   );

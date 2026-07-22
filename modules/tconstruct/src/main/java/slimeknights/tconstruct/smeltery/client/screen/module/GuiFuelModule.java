@@ -9,6 +9,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.neoforged.neoforge.fluids.FluidStack;
+import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 import slimeknights.mantle.client.screen.ScalableElementScreen;
 import slimeknights.mantle.fluid.tooltip.FluidTooltipHandler;
 import slimeknights.tconstruct.TConstruct;
@@ -47,6 +48,7 @@ public class GuiFuelModule implements IScreenWithFluidTank, ClickableTankModule 
   private final ScalableElementScreen fire;
 
   private FuelInfo fuelInfo = FuelInfo.EMPTY;
+  private List<FuelInfo> fuelInfos = List.of();
 
   public GuiFuelModule(AbstractContainerScreen<?> screen, FuelModule fuelModule, int x, int y, int width, int height, int fireX, int fireY, boolean hasFuelSlot, ResourceLocation background) {
     this.screen = screen;
@@ -74,11 +76,11 @@ public class GuiFuelModule implements IScreenWithFluidTank, ClickableTankModule 
 
   /** Gets the current height of the fluid */
   private int getFluidHeight() {
-    int capacity = fuelInfo.getCapacity();
-    if (capacity == 0) {
-      return height;
+    int fluidHeight = 0;
+    for (int segmentHeight : calcFuelHeights()) {
+      fluidHeight += segmentHeight;
     }
-    return height * fuelInfo.getTotalAmount() / capacity;
+    return Math.min(height, fluidHeight);
   }
 
   @Override
@@ -102,9 +104,17 @@ public class GuiFuelModule implements IScreenWithFluidTank, ClickableTankModule 
     // draw tank second, it changes the image
     // store fuel info into a field for other methods, this one updates most often
     if (!hasFuelSlot) {
-      fuelInfo = fuelModule.getFuelInfo();
-      if (!fuelInfo.isEmpty()) {
-        GuiUtil.renderFluidTank(graphics.pose(), screen, fuelInfo.getFluid(), fuelInfo.getTotalAmount(), fuelInfo.getCapacity(), x, y, width, height, 100);
+      refreshFuelInfo();
+      if (!fuelInfos.isEmpty()) {
+        int[] heights = calcFuelHeights();
+        int segmentY = y + height;
+        for (int i = 0; i < fuelInfos.size(); i++) {
+          int fluidHeight = Math.min(heights[i], segmentY - y);
+          if (fluidHeight > 0) {
+            segmentY -= fluidHeight;
+            GuiUtil.renderTiledFluid(graphics.pose(), screen, fuelInfos.get(i).getFluid(), x, segmentY, width, fluidHeight, 100);
+          }
+        }
       }
     }
   }
@@ -140,6 +150,7 @@ public class GuiFuelModule implements IScreenWithFluidTank, ClickableTankModule 
     int checkY = mouseY - screen.getGuiTop();
 
     if (isHovered(checkX, checkY)) {
+      hasTank |= hasKnownTank();
       List<Component> tooltip;
       // if an item or we have a fuel slot, do item tooltip
       if (hasFuelSlot || fuelInfo.isItem()) {
@@ -159,10 +170,14 @@ public class GuiFuelModule implements IScreenWithFluidTank, ClickableTankModule 
         } else {
           tooltip = Collections.emptyList();
         }
-      } else if (!fuelInfo.isEmpty()) {
-        FluidStack fluid = fuelInfo.getFluid();
-        tooltip = FluidTooltipHandler.getFluidTooltip(fluid, fuelInfo.getTotalAmount());
-        int temperature = fuelInfo.getTemperature();
+      } else if (!fuelInfos.isEmpty()) {
+        FuelInfo hoveredFuel = getFuelInfoAt(checkY);
+        if (hoveredFuel == null) {
+          hoveredFuel = fuelInfo;
+        }
+        FluidStack fluid = hoveredFuel.getFluid();
+        tooltip = FluidTooltipHandler.getFluidTooltip(fluid, hoveredFuel.getTotalAmount());
+        int temperature = hoveredFuel.getTemperature();
         if (temperature > 0) {
           tooltip.add(1, Component.translatable(TOOLTIP_TEMPERATURE, temperature).withStyle(ChatFormatting.GRAY, ChatFormatting.ITALIC));
         } else {
@@ -179,10 +194,75 @@ public class GuiFuelModule implements IScreenWithFluidTank, ClickableTankModule 
   @Override
   @Nullable
   public FluidLocation getFluidUnderMouse(int checkX, int checkY) {
-    if (!hasFuelSlot && isHovered(checkX, checkY) && !fuelInfo.isEmpty()) {
-      return new FluidLocation(fuelInfo.getFluid(), fluidLoc);
+    if (!hasFuelSlot && isHovered(checkX, checkY) && !fuelInfos.isEmpty()) {
+      FuelInfo hoveredFuel = getFuelInfoAt(checkY);
+      if (hoveredFuel != null) {
+        return new FluidLocation(hoveredFuel.getFluid(), fluidLoc);
+      }
     }
     return null;
+  }
+
+  /** Gets the fuel segment under the mouse */
+  @Nullable
+  private FuelInfo getFuelInfoAt(int checkY) {
+    if (fuelInfos.isEmpty()) {
+      return null;
+    }
+    int[] heights = calcFuelHeights();
+    int segmentY = y + height;
+    for (int i = 0; i < fuelInfos.size(); i++) {
+      int fluidHeight = heights[i];
+      segmentY -= fluidHeight;
+      if (fluidHeight > 0 && checkY > segmentY) {
+        return fuelInfos.get(i);
+      }
+    }
+    return null;
+  }
+
+  /** Refreshes fuel info without hiding the last known tank during a transient client-side structure reload. */
+  private void refreshFuelInfo() {
+    List<FuelInfo> current = fuelModule.getFuelInfos();
+    if (!current.isEmpty()) {
+      fuelInfos = current;
+      fuelInfo = current.get(0);
+    } else if (!hasBackingTank() && !fuelModule.hasFuel()) {
+      fuelInfos = List.of();
+      fuelInfo = FuelInfo.EMPTY;
+    }
+  }
+
+  /** Checks if the backing module still knows about at least one fuel tank. */
+  private boolean hasKnownTank() {
+    return fuelModule.hasFuel() || !fuelInfos.isEmpty() || hasBackingTank();
+  }
+
+  /** Checks if the backing fluid handler reports any tank slots. */
+  private boolean hasBackingTank() {
+    return fuelModule instanceof IFluidHandler fluidHandler && fluidHandler.getTanks() > 0;
+  }
+
+  /** Gets pixel heights for each visible fuel segment. */
+  private int[] calcFuelHeights() {
+    int[] segmentHeights = new int[fuelInfos.size()];
+    if (fuelInfos.isEmpty() || height <= 0) {
+      return segmentHeights;
+    }
+
+    int capacity = fuelInfos.get(0).getCapacity();
+    if (capacity <= 0) {
+      return segmentHeights;
+    }
+
+    List<FluidStack> fluids = fuelInfos.stream()
+        .map(info -> info.getFluid().copyWithAmount(info.getTotalAmount()))
+        .toList();
+    int[] heights = GuiSmelteryTank.calcLiquidHeights(fluids, capacity, height, 1);
+    if (heights.length == segmentHeights.length) {
+      return heights;
+    }
+    return segmentHeights;
   }
 
   /** Creates the fire element from the standard location */

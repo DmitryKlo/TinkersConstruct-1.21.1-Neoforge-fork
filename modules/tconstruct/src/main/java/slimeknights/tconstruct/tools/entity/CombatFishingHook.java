@@ -74,7 +74,7 @@ public class CombatFishingHook extends FishingHook implements ProjectileWithKnoc
 
   // set velocity to 0.6 for vanilla behavior
   public CombatFishingHook(Player player, Level level, int luck, int lure, float velocity, float inaccuracy) {
-    super(TinkerTools.fishingHook.get(), level, luck, lure);
+    this(TinkerTools.fishingHook.get(), level);
     this.setOwner(player);
     float xRot = player.getXRot();
     float yRot = player.getYRot();

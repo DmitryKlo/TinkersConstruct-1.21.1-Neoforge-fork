@@ -8,6 +8,7 @@ issueTrackerURL="https://github.com/Rainy1127/Tinkers-Construct-1.21.1-Port-Unof
     version="${mod_version}"
     displayName="${mod_name}"
     authors="${mod_authors}"
+    enumExtensions="META-INF/enumextensions.json"
     description='''${mod_description}'''
     displayURL="https://github.com/Rainy1127/Tinkers-Construct-1.21.1-Port-Unofficial/"
 

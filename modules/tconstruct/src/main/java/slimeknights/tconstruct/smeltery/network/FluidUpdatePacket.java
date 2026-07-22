@@ -16,7 +16,7 @@ public class FluidUpdatePacket implements IThreadsafePacket {
   public static final CustomPacketPayload.Type<FluidUpdatePacket> TYPE = new CustomPacketPayload.Type<>(TConstruct.getResource("fluid_update"));
   public static final StreamCodec<RegistryFriendlyByteBuf, FluidUpdatePacket> STREAM_CODEC = StreamCodec.composite(
     BlockPos.STREAM_CODEC, packet -> packet.pos,
-    FluidStack.STREAM_CODEC, packet -> packet.fluid,
+    FluidStack.OPTIONAL_STREAM_CODEC, packet -> packet.fluid,
     FluidUpdatePacket::new
   );
 

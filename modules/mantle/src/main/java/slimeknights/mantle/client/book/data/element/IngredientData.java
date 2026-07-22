@@ -20,6 +20,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.StringUtil;
 import slimeknights.mantle.registration.ForgeRegistries;
 import slimeknights.mantle.client.book.repository.BookRepository;
+import slimeknights.mantle.data.loadable.common.ItemStackLoadable;
 import slimeknights.mantle.recipe.ingredient.SizedIngredient;
 
 import java.lang.reflect.Type;
@@ -152,6 +153,12 @@ public class IngredientData implements IDataElement {
       }
 
       JsonObject object = json.getAsJsonObject();
+      if (object.has("type")) {
+        String type = object.get("type").getAsString();
+        if ("forge:nbt".equals(type) || "neoforge:nbt".equals(type)) {
+          return SizedIngredient.of(Ingredient.of(ItemStackLoadable.REQUIRED_ITEM_NBT.deserialize(object)));
+        }
+      }
       return SizedIngredient.deserialize(object);
     }
   }

@@ -294,7 +294,16 @@ public class InventoryModule implements ModifierModule, InventoryModifierHook, V
    * @return Tag written to, same as {@code compound}.
    */
   public static CompoundTag writeStack(ItemStack stack, int slot, CompoundTag compound) {
-    stack.save(RegistryAccess.EMPTY, compound);
+    for (String key : List.copyOf(compound.getAllKeys())) {
+      compound.remove(key);
+    }
+    CompoundTag saved = (CompoundTag)stack.save(RegistryAccess.EMPTY, new CompoundTag());
+    for (String key : saved.getAllKeys()) {
+      Tag value = saved.get(key);
+      if (value != null) {
+        compound.put(key, value.copy());
+      }
+    }
     compound.putInt(TAG_SLOT, slot);
     return compound;
   }

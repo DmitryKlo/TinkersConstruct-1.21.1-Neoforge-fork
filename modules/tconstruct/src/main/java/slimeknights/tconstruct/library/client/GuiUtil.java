@@ -115,7 +115,7 @@ public final class GuiUtil {
    * @param depth   Fluid depth
    */
   public static void renderTiledFluid(PoseStack matrices, AbstractContainerScreen<?> screen, FluidStack stack, int x, int y, int width, int height, int depth) {
-    if (!stack.isEmpty()) {
+    if (!stack.isEmpty() && width > 0 && height > 0) {
       IClientFluidTypeExtensions clientFluid = IClientFluidTypeExtensions.of(stack.getFluid());
       TextureAtlasSprite fluidSprite = screen.getMinecraft().getTextureAtlas(InventoryMenu.BLOCK_ATLAS).apply(clientFluid.getStillTexture(stack));
       RenderUtils.setColorRGBA(clientFluid.getTintColor(stack));
@@ -137,6 +137,9 @@ public final class GuiUtil {
    * @param upsideDown  If true, flips the sprite
    */
   public static void renderTiledTextureAtlas(PoseStack matrices, AbstractContainerScreen<?> screen, TextureAtlasSprite sprite, int x, int y, int width, int height, int depth, boolean upsideDown) {
+    if (width <= 0 || height <= 0) {
+      return;
+    }
     // start drawing sprites
     RenderUtils.bindTexture(sprite.atlasLocation());
     BufferBuilder builder = Tesselator.getInstance().begin(Mode.QUADS, DefaultVertexFormat.POSITION_TEX);
@@ -145,13 +148,13 @@ public final class GuiUtil {
     float u1 = sprite.getU0();
     float v1 = sprite.getV0();
     int spriteWidth = sprite.contents().width();
-    int spriteHeight = spriteWidth;
+    int spriteHeight = sprite.contents().height();
     int startX = x + screen.getGuiLeft();
     int startY = y + screen.getGuiTop();
     do {
       int renderHeight = Math.min(spriteHeight, height);
       height -= renderHeight;
-      float v2 = sprite.getV((16f * renderHeight) / spriteHeight);
+      float v2 = sprite.getV((float)renderHeight / spriteHeight);
 
       // we need to draw the quads per width too
       int x2 = startX;
@@ -162,7 +165,7 @@ public final class GuiUtil {
         int renderWidth = Math.min(spriteWidth, widthLeft);
         widthLeft -= renderWidth;
 
-        float u2 = sprite.getU((16f * renderWidth) / spriteWidth);
+        float u2 = sprite.getU((float)renderWidth / spriteWidth);
         if(upsideDown) {
           // FIXME: I think this causes tiling errors, look into it
           buildSquare(matrix, builder, x2, x2 + renderWidth, startY, startY + renderHeight, depth, u1, u2, v2, v1);

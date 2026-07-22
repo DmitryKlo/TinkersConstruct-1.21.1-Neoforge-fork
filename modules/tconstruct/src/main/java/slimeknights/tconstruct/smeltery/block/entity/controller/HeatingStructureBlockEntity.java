@@ -469,8 +469,8 @@ public abstract class HeatingStructureBlockEntity extends NameableBlockEntity im
 
   @Override
   public void notifyFluidsChanged(FluidChange type, FluidStack fluid) {
-    if (type == FluidChange.ORDER_CHANGED) {
-      updateDisplayFluid(fluid);
+    if (type == FluidChange.ORDER_CHANGED || type == FluidChange.ADDED || type == FluidChange.REMOVED) {
+      updateDisplayFluid(tank.getFluidInTank(0));
     }
     // mark that fluids need an update on the client
     fluidUpdateQueued = true;

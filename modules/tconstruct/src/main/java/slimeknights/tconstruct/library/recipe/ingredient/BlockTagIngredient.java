@@ -6,6 +6,7 @@ import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntComparators;
 import it.unimi.dsi.fastutil.ints.IntList;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
@@ -21,7 +22,6 @@ import slimeknights.mantle.util.RegistryHelper;
 import slimeknights.tconstruct.TConstruct;
 
 import javax.annotation.Nullable;
-import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -92,7 +92,7 @@ public class BlockTagIngredient extends AbstractIngredient {
   }
 
   @Override
-  public IIngredientSerializer<? extends Ingredient> getSerializer() {
+  public IIngredientSerializer<?> getSerializer() {
     return Serializer.INSTANCE;
   }
 
@@ -105,26 +105,24 @@ public class BlockTagIngredient extends AbstractIngredient {
   }
 
   /** Serializer instance */
-  public enum Serializer implements IIngredientSerializer<Ingredient> {
+  public enum Serializer implements IIngredientSerializer<BlockTagIngredient> {
     INSTANCE;
 
     public static final ResourceLocation ID = TConstruct.getResource("block_tag");
 
     @Override
-    public Ingredient parse(JsonObject json) {
-      return new BlockTagIngredient(Loadables.BLOCK_TAG.getIfPresent(json, "tag")).asIngredient();
+    public BlockTagIngredient parse(JsonObject json) {
+      return new BlockTagIngredient(Loadables.BLOCK_TAG.getIfPresent(json, "tag"));
     }
 
     @Override
-    public void write(FriendlyByteBuf buffer, Ingredient ingredient) {
-      // just write the item list, will become a vanilla ingredient client side
-      buffer.writeCollection(Arrays.asList(ingredient.getItems()), (buf, stack) -> ItemStack.OPTIONAL_STREAM_CODEC.encode((net.minecraft.network.RegistryFriendlyByteBuf) buf, stack));
+    public void write(FriendlyByteBuf buffer, BlockTagIngredient ingredient) {
+      buffer.writeResourceLocation(ingredient.tag.location());
     }
 
     @Override
-    public Ingredient parse(FriendlyByteBuf buffer) {
-      int size = buffer.readVarInt();
-      return Ingredient.fromValues(Stream.generate(() -> new Ingredient.ItemValue(ItemStack.OPTIONAL_STREAM_CODEC.decode((net.minecraft.network.RegistryFriendlyByteBuf) buffer))).limit(size));
+    public BlockTagIngredient parse(FriendlyByteBuf buffer) {
+      return new BlockTagIngredient(TagKey.create(Registries.BLOCK, buffer.readResourceLocation()));
     }
   }
 }

@@ -213,26 +213,36 @@ public class SideInventoryScreen<P extends MultiModuleScreen<?>, C extends Abstr
     this.firstSlotId = this.slider.getValue() * this.columns;
     this.lastSlotId = Math.min(this.slotCount, this.firstSlotId + getDisplayedRows() * this.columns);
 
-    int xd = this.border.w + this.xOffset;
-    int yd = this.border.h + this.yOffset;
-
-    if (shouldDrawName()) {
-      yd += this.textBackground.h;
-    }
-
     for (Slot slot : this.menu.slots) {
       if (this.shouldDrawSlot(slot)) {
-        // calc position of the slot
-        int offset = slot.getSlotIndex() - this.firstSlotId;
-        int x = (offset % this.columns) * this.slot.w;
-        int y = (offset / this.columns) * this.slot.h;
-
-        // TODO 1.21: Slot coordinates are final. Recreate side-inventory slots instead of mutating them.
+        SlotPositionHelper.setSlotPosition(slot, getSlotX(slot), getSlotY(slot));
       }
       else {
-        // TODO 1.21: Slot coordinates are final. Hide inactive slots via shouldDrawSlot for now.
+        SlotPositionHelper.setSlotPosition(slot, 0, 0);
       }
     }
+  }
+
+  @Override
+  public int getSlotX(Slot slot) {
+    int offset = slot.getSlotIndex() - this.firstSlotId;
+    int x = this.border.w + this.xOffset + (offset % this.columns) * this.slot.w + 1;
+    if (this.right) {
+      x += this.parent.realWidth;
+    } else {
+      x -= this.imageWidth;
+    }
+    return x;
+  }
+
+  @Override
+  public int getSlotY(Slot slot) {
+    int offset = slot.getSlotIndex() - this.firstSlotId;
+    int y = this.border.h + this.yOffset + (offset / this.columns) * this.slot.h + 1;
+    if (shouldDrawName()) {
+      y += this.textBackground.h;
+    }
+    return y;
   }
 
   @Override

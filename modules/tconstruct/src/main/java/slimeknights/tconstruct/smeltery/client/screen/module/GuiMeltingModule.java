@@ -16,6 +16,7 @@ import slimeknights.tconstruct.smeltery.block.entity.module.MeltingModuleInvento
 
 import java.util.function.IntSupplier;
 import java.util.function.Predicate;
+import java.util.function.ToIntFunction;
 
 @AllArgsConstructor
 public class GuiMeltingModule {
@@ -29,10 +30,16 @@ public class GuiMeltingModule {
   private final int indexOffset;
   private final IntSupplier temperature;
   private final Predicate<Slot> slotPredicate;
+  private final ToIntFunction<Slot> slotX;
+  private final ToIntFunction<Slot> slotY;
   private final ProgressBars progressBars;
 
   public GuiMeltingModule(AbstractContainerScreen<?> screen, MeltingModuleInventory inventory, int indexOffset, IntSupplier temperature, Predicate<Slot> slotPredicate, ResourceLocation background) {
-    this(screen, inventory, indexOffset, temperature, slotPredicate, makeProgressBars(background));
+    this(screen, inventory, indexOffset, temperature, slotPredicate, slot -> slot.x, slot -> slot.y, makeProgressBars(background));
+  }
+
+  public GuiMeltingModule(AbstractContainerScreen<?> screen, MeltingModuleInventory inventory, int indexOffset, IntSupplier temperature, Predicate<Slot> slotPredicate, ToIntFunction<Slot> slotX, ToIntFunction<Slot> slotY, ResourceLocation background) {
+    this(screen, inventory, indexOffset, temperature, slotPredicate, slotX, slotY, makeProgressBars(background));
   }
 
   /**
@@ -69,7 +76,7 @@ public class GuiMeltingModule {
         }
 
         // draw the bar
-        GuiUtil.drawProgressUp(graphics, bar, slot.x - 4, slot.y, progress);
+        GuiUtil.drawProgressUp(graphics, bar, slotX.applyAsInt(slot) - 4, slotY.applyAsInt(slot), progress);
       }
     }
   }
@@ -89,7 +96,7 @@ public class GuiMeltingModule {
       // must have a stack
       if (slot.hasItem() && slotPredicate.test(slot)) {
         // mouse must be within the slot
-        if (GuiUtil.isHovered(checkX, checkY, slot.x - 5, slot.y - 1, progressBars.width() + 1, progressBars.height() + 2)) {
+        if (GuiUtil.isHovered(checkX, checkY, slotX.applyAsInt(slot) - 5, slotY.applyAsInt(slot) - 1, progressBars.width() + 1, progressBars.height() + 2)) {
           int index = slot.getSlotIndex(); // note this is the inventory index, not the index in the slots list
           Component tooltip = null;
 

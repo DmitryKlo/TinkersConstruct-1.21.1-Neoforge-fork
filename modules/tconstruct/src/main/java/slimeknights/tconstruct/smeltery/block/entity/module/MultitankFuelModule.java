@@ -7,6 +7,7 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.Fluid;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
@@ -14,6 +15,7 @@ import net.neoforged.neoforge.fluids.capability.templates.EmptyFluidHandler;
 import slimeknights.mantle.block.entity.MantleBlockEntity;
 
 import javax.annotation.Nonnull;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +34,8 @@ public class MultitankFuelModule extends FuelModule implements IFluidHandler {
 
   /** Map of all tank handlers at each relevant position. Used for fast switching between handlers, notably in the UI */
   private Map<BlockPos, IFluidHandler> tankHandlers;
+  /** Last non-empty tank count seen by the client, used to keep the fuel GUI stable during structure resyncs. */
+  private int knownTankCount;
 
   public MultitankFuelModule(MantleBlockEntity parent, Supplier<List<BlockPos>> tankSupplier) {
     super(parent);
@@ -53,7 +57,8 @@ public class MultitankFuelModule extends FuelModule implements IFluidHandler {
   /** Called on structure rebuild to clear the gui handler list */
   public void clearFluidListeners() {
     tankHandlers = null;
-    resetHandler();
+    // Structure updates invalidate cached capabilities, but the last known tank position is synced separately.
+    super.resetHandler();
   }
 
   /** Called on servant load to ensure the handler is present in the cache */
@@ -82,6 +87,9 @@ public class MultitankFuelModule extends FuelModule implements IFluidHandler {
             tankHandlers.put(pos, handler);
           }
         }
+      }
+      if (!tankHandlers.isEmpty()) {
+        knownTankCount = tankHandlers.size();
       }
     }
     return tankHandlers;
@@ -193,7 +201,7 @@ public class MultitankFuelModule extends FuelModule implements IFluidHandler {
         case LAST_Y -> lastPos = new BlockPos(lastPos.getX(), value, lastPos.getZ());
         case LAST_Z -> lastPos = new BlockPos(lastPos.getX(), lastPos.getY(), value);
       }
-      clearLastHandler();
+      super.resetHandler();
     } else {
       super.set(index, value);
     }
@@ -201,38 +209,74 @@ public class MultitankFuelModule extends FuelModule implements IFluidHandler {
 
   @Override
   public FuelInfo getFuelInfo() {
-    BlockPos mainTank = lastPos;
-    if (mainTank.getY() == NULL_POS.getY()) {
-      List<BlockPos> positions = tankSupplier.get();
-      if (positions.isEmpty()) {
-        return FuelInfo.EMPTY;
-      }
-      mainTank = positions.get(0);
+    List<FuelInfo> infos = getFuelInfos();
+    return infos.isEmpty() ? FuelInfo.EMPTY : infos.get(0);
+  }
+
+  @Override
+  public List<FuelInfo> getFuelInfos() {
+    List<IFluidHandler> handlers = getOrderedTankHandlers();
+    if (handlers.isEmpty()) {
+      return List.of();
     }
 
-    if (fluidHandler == null) {
-      fluidHandler = getTankHandlers().get(mainTank);
-    }
-
-    FuelInfo info = super.getFuelInfo();
-    if (!info.isEmpty()) {
-      FluidStack currentFuel = info.getFluid();
-      for (Entry<BlockPos, IFluidHandler> entry : getTankHandlers().entrySet()) {
-        if (!mainTank.equals(entry.getKey())) {
-          IFluidHandler handler = entry.getValue();
-          if (handler != null) {
-            FluidStack fluid = handler.getFluidInTank(0);
-            if (fluid.isEmpty()) {
-              info.add(0, handler.getTankCapacity(0));
-            } else if (currentFuel.isFluidEqual(fluid)) {
-              info.add(fluid.getAmount(), handler.getTankCapacity(0));
-            }
+    Map<Fluid, FuelInfo> fuels = new LinkedHashMap<>();
+    int totalCapacity = 0;
+    for (IFluidHandler handler : handlers) {
+      for (int tank = 0; tank < handler.getTanks(); tank++) {
+        totalCapacity += handler.getTankCapacity(tank);
+        FluidStack fluid = handler.getFluidInTank(tank);
+        if (!fluid.isEmpty()) {
+          var recipe = findRecipe(fluid.getFluid());
+          if (recipe != null) {
+            fuels.compute(fluid.getFluid(), (key, info) -> {
+              if (info == null) {
+                return FuelInfo.of(fluid, fluid.getAmount(), 0, recipe.getTemperature());
+              }
+              info.add(fluid.getAmount(), 0);
+              return info;
+            });
           }
         }
       }
     }
 
-    return info;
+    if (fuels.isEmpty()) {
+      return List.of();
+    }
+    for (FuelInfo info : fuels.values()) {
+      info.setCapacity(totalCapacity);
+    }
+    return List.copyOf(fuels.values());
+  }
+
+  /** Gets tank handlers with the last used tank first */
+  private List<IFluidHandler> getOrderedTankHandlers() {
+    Map<BlockPos, IFluidHandler> handlers = getTankHandlers();
+    if (handlers.isEmpty()) {
+      return List.of();
+    }
+
+    List<IFluidHandler> ordered = new ArrayList<>(handlers.size());
+    BlockPos mainTank = lastPos;
+    if (mainTank.getY() == NULL_POS.getY()) {
+      List<BlockPos> positions = tankSupplier.get();
+      if (!positions.isEmpty()) {
+        mainTank = positions.get(0);
+      }
+    }
+
+    IFluidHandler mainHandler = fluidHandler != null ? fluidHandler : handlers.get(mainTank);
+    if (mainHandler != null) {
+      ordered.add(mainHandler);
+    }
+    for (Entry<BlockPos, IFluidHandler> entry : handlers.entrySet()) {
+      IFluidHandler handler = entry.getValue();
+      if (handler != null && handler != mainHandler) {
+        ordered.add(handler);
+      }
+    }
+    return ordered;
   }
 
 
@@ -241,7 +285,7 @@ public class MultitankFuelModule extends FuelModule implements IFluidHandler {
   /** Gets the most recently used fluid */
   public FluidStack getLastFluid() {
     if (fluidHandler != null) {
-      return fluidHandler.getFluidInTank(0);
+      return getFirstFluid(fluidHandler);
     }
     BlockPos pos;
     if (lastPos.getY() != NULL_POS.getY()) {
@@ -255,12 +299,32 @@ public class MultitankFuelModule extends FuelModule implements IFluidHandler {
       }
     }
     IFluidHandler handler = getTankHandlers().get(pos);
-    return handler != null ? handler.getFluidInTank(0) : FluidStack.EMPTY;
+    return handler != null ? getFirstFluid(handler) : FluidStack.EMPTY;
+  }
+
+  /** Gets the first non-empty fluid in the handler */
+  private static FluidStack getFirstFluid(IFluidHandler handler) {
+    for (int tank = 0; tank < handler.getTanks(); tank++) {
+      FluidStack fluid = handler.getFluidInTank(tank);
+      if (!fluid.isEmpty()) {
+        return fluid;
+      }
+    }
+    return FluidStack.EMPTY;
   }
 
   @Override
   public int getTanks() {
-    return tankSupplier.get().size();
+    int count = tankSupplier.get().size();
+    if (count > 0) {
+      knownTankCount = count;
+      return count;
+    }
+    if (tankHandlers != null && !tankHandlers.isEmpty()) {
+      knownTankCount = tankHandlers.size();
+      return knownTankCount;
+    }
+    return lastPos != NULL_POS ? Math.max(1, knownTankCount) : knownTankCount;
   }
 
   /** Gets the tank at the given index */
@@ -278,12 +342,12 @@ public class MultitankFuelModule extends FuelModule implements IFluidHandler {
   @Nonnull
   @Override
   public FluidStack getFluidInTank(int tank) {
-    return getTank(tank).getFluidInTank(tank);
+    return getTank(tank).getFluidInTank(0);
   }
 
   @Override
   public int getTankCapacity(int tank) {
-    return getTank(tank).getTankCapacity(tank);
+    return getTank(tank).getTankCapacity(0);
   }
 
   @Override

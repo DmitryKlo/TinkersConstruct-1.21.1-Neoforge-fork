@@ -203,6 +203,13 @@ public class MultiModuleScreen<CONTAINER extends MultiModuleContainerMenu<?>> ex
       if (!module.shouldDrawSlot(slot)) {
         return;
       }
+
+      PoseStack poses = graphics.pose();
+      poses.pushPose();
+      poses.translate(module.getSlotX(slot) - slotIn.x, module.getSlotY(slot) - slotIn.y, 0.0F);
+      super.renderSlot(graphics, slotIn);
+      poses.popPose();
+      return;
     }
 
     super.renderSlot(graphics, slotIn);
@@ -222,6 +229,8 @@ public class MultiModuleScreen<CONTAINER extends MultiModuleContainerMenu<?>> ex
       if (!module.shouldDrawSlot(slot)) {
         return false;
       }
+
+      return this.isHovering(module.getSlotX(slot), module.getSlotY(slot), 16, 16, mouseX, mouseY);
     }
 
     return this.isHovering(slotIn.x, slotIn.y, 16, 16, mouseX, mouseY);

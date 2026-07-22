@@ -46,7 +46,7 @@ public record LootTableInjection(ResourceLocation name, List<LootPoolInjection> 
       LootPool pool = table.getPool(name);
       //noinspection ConstantConditions method is annotated wrongly
       if (pool != null) {
-        getEntries(pool).addAll(Arrays.asList(entries));
+        setEntries(pool, getEntries(pool));
       } else {
         Mantle.logger.warn("Failed to inject loot into {} pool {}", table.getLootTableId(), name);
       }
@@ -70,6 +70,16 @@ public record LootTableInjection(ResourceLocation name, List<LootPoolInjection> 
         return (List<LootPoolEntryContainer>)ENTRIES_FIELD.get(pool);
       } catch (IllegalAccessException e) {
         throw new IllegalStateException("Unable to access LootPool entries field", e);
+      }
+    }
+
+    private void setEntries(LootPool pool, List<LootPoolEntryContainer> current) {
+      try {
+        List<LootPoolEntryContainer> mutable = new ArrayList<>(current);
+        mutable.addAll(Arrays.asList(entries));
+        ENTRIES_FIELD.set(pool, mutable);
+      } catch (IllegalAccessException e) {
+        throw new IllegalStateException("Unable to replace LootPool entries field", e);
       }
     }
   }

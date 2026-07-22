@@ -11,12 +11,7 @@ import slimeknights.mantle.client.screen.MultiModuleScreen;
 import slimeknights.mantle.client.screen.ScalableElementScreen;
 import slimeknights.mantle.client.screen.SliderWidget;
 
-import java.lang.reflect.Field;
-
 public class DynamicContainerScreen<P extends MultiModuleScreen<?>, C extends AbstractContainerMenu> extends ModuleScreen<P,C> {
-  private static final Field SLOT_X_FIELD = slotField("x");
-  private static final Field SLOT_Y_FIELD = slotField("y");
-
   // Graphic Resources
   protected static final ScalableElementScreen slot = GenericScreen.slot;
   private static final ScalableElementScreen slotEmpty = GenericScreen.slotEmpty;
@@ -167,30 +162,11 @@ public class DynamicContainerScreen<P extends MultiModuleScreen<?>, C extends Ab
           int x = (offset % this.columns) * DynamicContainerScreen.slot.w;
           int y = (offset / this.columns) * DynamicContainerScreen.slot.h;
 
-          setSlotPosition(slot, xOffset + x + 1, yOffset + y + 1);
+          SlotPositionHelper.setSlotPosition(slot, xOffset + x + 1, yOffset + y + 1);
         } else {
-          setSlotPosition(slot, 0, 0);
+          SlotPositionHelper.setSlotPosition(slot, 0, 0);
         }
       }
-    }
-  }
-
-  private static Field slotField(String name) {
-    try {
-      Field field = Slot.class.getDeclaredField(name);
-      field.setAccessible(true);
-      return field;
-    } catch (ReflectiveOperationException e) {
-      throw new ExceptionInInitializerError(e);
-    }
-  }
-
-  private static void setSlotPosition(Slot slot, int x, int y) {
-    try {
-      SLOT_X_FIELD.setInt(slot, x);
-      SLOT_Y_FIELD.setInt(slot, y);
-    } catch (IllegalAccessException e) {
-      throw new IllegalStateException("Unable to update dynamic slot position", e);
     }
   }
 

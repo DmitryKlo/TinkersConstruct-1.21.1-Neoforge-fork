@@ -18,6 +18,7 @@ import slimeknights.mantle.util.StackDataHelper;
 import slimeknights.tconstruct.common.Sounds;
 import slimeknights.tconstruct.tools.TinkerTools;
 
+import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -42,7 +43,7 @@ public class CrystalshotItem extends ArrowItem {
 
   @Override
   public AbstractArrow createArrow(Level pLevel, ItemStack pStack, LivingEntity pShooter, ItemStack weapon) {
-    CrystalshotEntity arrow = new CrystalshotEntity(pLevel, pShooter);
+    CrystalshotEntity arrow = new CrystalshotEntity(pLevel, pShooter, weapon);
     String variant = "random";
     CompoundTag tag = StackDataHelper.getTag(pStack);
     if (tag != null && tag.contains(TAG_VARIANT, Tag.TAG_STRING)) {
@@ -79,7 +80,11 @@ public class CrystalshotItem extends ArrowItem {
     }
 
     public CrystalshotEntity(Level level, LivingEntity shooter) {
-      super(TinkerTools.crystalshotEntity.get(), shooter, level, ItemStack.EMPTY, ItemStack.EMPTY);
+      this(level, shooter, null);
+    }
+
+    public CrystalshotEntity(Level level, LivingEntity shooter, @Nullable ItemStack firedFromWeapon) {
+      super(TinkerTools.crystalshotEntity.get(), shooter, level, ItemStack.EMPTY, firedFromWeapon);
       setSoundEvent(Sounds.CRYSTALSHOT.getSound());
     }
 

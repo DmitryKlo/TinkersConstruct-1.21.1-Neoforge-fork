@@ -14,11 +14,9 @@ import slimeknights.mantle.data.loadable.record.RecordLoadable;
 import slimeknights.mantle.data.registry.NamedComponentRegistry;
 import slimeknights.mantle.recipe.ingredient.SizedIngredient;
 import slimeknights.tconstruct.TConstruct;
-import slimeknights.tconstruct.library.client.materials.MaterialTooltipCache;
 import slimeknights.tconstruct.library.json.IntRange;
 import slimeknights.tconstruct.library.json.field.MergingField;
 import slimeknights.tconstruct.library.json.field.MergingField.MissingMode;
-import slimeknights.tconstruct.library.materials.definition.IMaterial;
 import slimeknights.tconstruct.library.materials.definition.MaterialVariantId;
 import slimeknights.tconstruct.library.modifiers.ModifierEntry;
 import slimeknights.tconstruct.library.modifiers.ModifierId;
@@ -33,7 +31,6 @@ import slimeknights.tconstruct.tools.TinkerModifiers;
 
 import javax.annotation.Nullable;
 import java.util.List;
-import java.util.Objects;
 import java.util.stream.Collectors;
 
 import static slimeknights.tconstruct.TConstruct.getResource;
@@ -164,7 +161,13 @@ public class SwappableModifierRecipe extends ModifierRecipe {
     /** Formats using the modifier ID as a base translation key */
     VariantFormatter DEFAULT = LOADER.register(getResource("default"), (modifier, variant) -> Component.translatable(Util.makeTranslationKey("modifier", modifier) + "." + variant));
     /** Formats using the material translation key */
-    VariantFormatter MATERIAL = LOADER.register(getResource("material"), (modifier, variant) -> MaterialTooltipCache.getDisplayName(Objects.requireNonNullElse(MaterialVariantId.tryParse(variant), IMaterial.UNKNOWN_ID)));
+    VariantFormatter MATERIAL = LOADER.register(getResource("material"), (modifier, variant) -> {
+      MaterialVariantId material = MaterialVariantId.tryParse(variant);
+      if (material == null) {
+        return Component.literal(variant);
+      }
+      return Component.translatable(Util.makeTranslationKey("material", material.getLocation('.')));
+    });
     /** Formats using the modifier ID as the base with the variant as a parameter */
     VariantFormatter PARAMETER = LOADER.register(getResource("parameter"), (modifier, variant) -> Component.translatable(Util.makeTranslationKey("modifier", modifier) + ".variant", variant));
   }

@@ -13,12 +13,16 @@ public final class StackDataHelper {
   @Nullable
   public static CompoundTag getTag(ItemStack stack) {
     CustomData data = stack.get(DataComponents.CUSTOM_DATA);
-    return data == null ? null : data.copyTag();
+    return data == null ? null : data.getUnsafe();
   }
 
   public static CompoundTag getOrCreateTag(ItemStack stack) {
     CompoundTag tag = getTag(stack);
-    return tag == null ? new CompoundTag() : tag;
+    if (tag == null) {
+      stack.set(DataComponents.CUSTOM_DATA, CustomData.of(new CompoundTag()));
+      tag = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).getUnsafe();
+    }
+    return tag;
   }
 
   public static boolean hasTag(ItemStack stack) {

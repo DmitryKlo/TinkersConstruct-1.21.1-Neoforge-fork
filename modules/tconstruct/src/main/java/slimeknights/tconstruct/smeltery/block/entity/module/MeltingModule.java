@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.world.inventory.ContainerData;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -229,11 +230,13 @@ public class MeltingModule implements IMeltingContainer, ContainerData {
    * @param nbt  NBT
    */
   public void readFromTag(CompoundTag nbt) {
-    stack = ItemStack.parseOptional(RegistryAccess.EMPTY, nbt);
+    stack = nbt.contains("id", Tag.TAG_STRING) ? ItemStack.parseOptional(RegistryAccess.EMPTY, nbt) : ItemStack.EMPTY;
     if (!stack.isEmpty()) {
       currentTime = nbt.getInt(TAG_CURRENT_TIME);
       requiredTime = nbt.getInt(TAG_REQUIRED_TIME);
       requiredTemp = nbt.getInt(TAG_REQUIRED_TEMP);
+    } else {
+      resetRecipe();
     }
   }
 

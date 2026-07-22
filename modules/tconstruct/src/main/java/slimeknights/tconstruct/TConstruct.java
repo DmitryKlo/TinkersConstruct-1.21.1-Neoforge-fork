@@ -1,5 +1,6 @@
 package slimeknights.tconstruct;
 
+import com.mojang.serialization.MapCodec;
 import net.minecraft.core.HolderLookup.Provider;
 import net.minecraft.core.RegistrySetBuilder;
 import net.minecraft.core.registries.Registries;
@@ -9,6 +10,9 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.neoforge.common.data.DatapackBuiltinEntriesProvider;
+import net.neoforged.neoforge.registries.DeferredHolder;
+import net.neoforged.neoforge.registries.DeferredRegister;
+import net.neoforged.neoforge.registries.NeoForgeRegistries;
 import net.neoforged.neoforge.registries.RegisterEvent;
 import net.neoforged.neoforge.common.data.ExistingFileHelper;
 import net.neoforged.neoforge.data.event.GatherDataEvent;
@@ -22,6 +26,7 @@ import net.neoforged.fml.config.ModConfig.Type;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.fml.loading.FMLEnvironment;
 import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.common.conditions.ICondition;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import slimeknights.tconstruct.common.Sounds;
@@ -45,6 +50,7 @@ import slimeknights.tconstruct.common.data.tags.ItemTagProvider;
 import slimeknights.tconstruct.common.data.tags.MenuTypeTagProvider;
 import slimeknights.tconstruct.common.data.tags.PotionTagProvider;
 import slimeknights.tconstruct.common.network.TinkerNetwork;
+import slimeknights.tconstruct.common.recipe.ConfigCondition;
 import slimeknights.tconstruct.fluids.TinkerFluids;
 import slimeknights.tconstruct.gadgets.TinkerGadgets;
 import slimeknights.tconstruct.library.TinkerItemDisplays;
@@ -86,6 +92,8 @@ public class TConstruct {
   public static final String MOD_ID = "tconstruct";
   public static final Logger LOG = LogManager.getLogger(MOD_ID);
   public static final Random RANDOM = new Random();
+  private static final DeferredRegister<MapCodec<? extends ICondition>> CONDITION_CODECS = DeferredRegister.create(NeoForgeRegistries.Keys.CONDITION_CODECS, MOD_ID);
+  public static final DeferredHolder<MapCodec<? extends ICondition>, MapCodec<ConfigCondition>> CONFIG_CONDITION = CONDITION_CODECS.register("config", () -> ConfigCondition.CODEC);
 
   /* Instance of this mod, used for grabbing prototype fields */
   public static TConstruct instance;
@@ -133,6 +141,7 @@ public class TConstruct {
     // init deferred registers
     TinkerModule.initRegisters(bus);
     TinkerNetwork.setup();
+    CONDITION_CODECS.register(bus);
     NeoForge.EVENT_BUS.addListener(TinkerFluids::registerBrewingRecipes);
     TinkerTags.init();
     // init client logic

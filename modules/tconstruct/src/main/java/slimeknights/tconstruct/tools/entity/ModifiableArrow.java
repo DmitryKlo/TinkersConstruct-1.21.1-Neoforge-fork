@@ -50,11 +50,15 @@ public class ModifiableArrow extends AbstractArrow implements ToolProjectile, Re
   }
 
   public ModifiableArrow(Level level, double pX, double pY, double pZ) {
-    super(TinkerTools.materialArrow.get(), pX, pY, pZ, level, ItemStack.EMPTY, ItemStack.EMPTY);
+    super(TinkerTools.materialArrow.get(), pX, pY, pZ, level, ItemStack.EMPTY, null);
   }
 
   public ModifiableArrow(Level level, LivingEntity shooter) {
-    super(TinkerTools.materialArrow.get(), shooter, level, ItemStack.EMPTY, ItemStack.EMPTY);
+    this(level, shooter, null);
+  }
+
+  public ModifiableArrow(Level level, LivingEntity shooter, @Nullable ItemStack firedFromWeapon) {
+    super(TinkerTools.materialArrow.get(), shooter, level, ItemStack.EMPTY, firedFromWeapon);
   }
 
 
@@ -62,12 +66,12 @@ public class ModifiableArrow extends AbstractArrow implements ToolProjectile, Re
 
   @Override
   public ItemStack getPickupItem() {
-    return stack.copy();
+    return stack == null ? ItemStack.EMPTY : stack.copy();
   }
 
   @Override
   protected ItemStack getDefaultPickupItem() {
-    return stack.copy();
+    return stack == null ? ItemStack.EMPTY : stack.copy();
   }
 
   /** Updates the stack on the arrow */

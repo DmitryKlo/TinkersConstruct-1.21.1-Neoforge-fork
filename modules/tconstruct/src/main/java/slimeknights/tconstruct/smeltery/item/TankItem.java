@@ -252,23 +252,17 @@ public class TankItem extends BlockTooltipItem {
     if (fluid.isEmpty()) {
       removeTank(stack);
     } else {
-      CompoundTag nbt = StackDataHelper.getOrCreateTag(stack);
-      nbt.put(NBTTags.TANK, fluid.save(RegistryAccess.EMPTY, new CompoundTag()));
-      StackDataHelper.setTag(stack, nbt);
+      FluidTank tank = getTank(stack, stack.getCount());
+      tank.setFluid(fluid.copy());
+      setTank(stack, tank);
     }
     return stack;
   }
 
   /** Creates a stack with the given fluid and amount, not validated. */
-  private static ItemStack setTank(ItemLike item, ResourceLocation fluid, int amount) {
-    CompoundTag tag = new CompoundTag();
-    tag.putString("FluidName", fluid.toString());
-    tag.putInt("Amount", amount);
+  private static ItemStack setTank(ItemLike item, ResourceLocation fluidName, int amount) {
     ItemStack stack = new ItemStack(item);
-    CompoundTag nbt = StackDataHelper.getOrCreateTag(stack);
-    nbt.put(NBTTags.TANK, tag);
-    StackDataHelper.setTag(stack, nbt);
-    return stack;
+    return setTank(stack, new FluidStack(BuiltInRegistries.FLUID.getOptional(fluidName).orElseThrow(), amount));
   }
 
   /**
@@ -309,7 +303,14 @@ public class TankItem extends BlockTooltipItem {
   public static String getSubtype(ItemStack stack) {
     CompoundTag nbt = StackDataHelper.getTag(stack);
     if (nbt != null && nbt.contains(NBTTags.TANK, Tag.TAG_COMPOUND)) {
-      return nbt.getCompound(NBTTags.TANK).getString("FluidName");
+      CompoundTag tank = nbt.getCompound(NBTTags.TANK);
+      if (tank.contains("FluidName", Tag.TAG_STRING)) {
+        return tank.getString("FluidName");
+      }
+      FluidStack fluid = getTank(stack, 1).getFluid();
+      if (!fluid.isEmpty()) {
+        return BuiltInRegistries.FLUID.getKey(fluid.getFluid()).toString();
+      }
     }
     return "";
   }

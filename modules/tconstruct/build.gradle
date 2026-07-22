@@ -24,6 +24,13 @@ repositories {
         name = 'BlameJared Maven'
         url = 'https://maven.blamejared.com/'
     }
+    maven {
+        name = 'Modrinth Maven'
+        url = 'https://api.modrinth.com/maven'
+        content {
+            includeGroup 'maven.modrinth'
+        }
+    }
 }
 
 neoForge {
@@ -54,22 +61,204 @@ sourceSets.main.resources {
 }
 
 tasks.named('processResources', ProcessResources).configure {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    def upstreamRoot = rootProject.file('porting/upstream/tconstruct-1.20.1').toPath()
+    exclude { details ->
+        if (!details.file.toPath().startsWith(upstreamRoot)) {
+            return false
+        }
+        def path = details.path.replace('\\', '/')
+        return path == 'pack.mcmeta'
+            || path == 'META-INF/accesstransformer.cfg'
+            || path.startsWith('data/tconstruct/recipes/')
+            || path.startsWith('data/tconstruct/advancements/recipes/')
+            || path == 'data/tconstruct/tinkering/modifiers/sticky.json'
+            || path.startsWith('data/tconstruct/forge/')
+            || path.matches('data/[^/]+/tags/(blocks|items|fluids|entity_types)/.*')
+    }
+    filesMatching('assets/tconstruct/book/**/appearance.json') {
+        filter { line ->
+            line.replaceAll(/0x([0-9A-Fa-f]+)/) { match, hex ->
+                Integer.parseInt(hex, 16).toString()
+            }
+        }
+    }
+    filesMatching('data/*/recipe/**/*.json') {
+        filter { line ->
+            line.replace('"conditions": [', '"neoforge:conditions": [')
+        }
+    }
+    filesMatching('**/*.json') {
+        filter { line ->
+            line
+                .replace('"type": "forge:and"', '"type": "neoforge:and"')
+                .replace('"type": "forge:or"', '"type": "neoforge:or"')
+                .replace('"type": "forge:not"', '"type": "neoforge:not"')
+                .replace('"type": "forge:difference"', '"type": "neoforge:difference"')
+                .replace('"type": "forge:intersection"', '"type": "neoforge:intersection"')
+                .replace('"type": "forge:mod_loaded"', '"type": "neoforge:mod_loaded"')
+                .replace('"type": "forge:item_exists"', '"type": "neoforge:item_exists"')
+                .replace('"type": "forge:true"', '"type": "neoforge:true"')
+                .replace('"type": "forge:conditional"', '"type": "neoforge:conditional"')
+                .replace('"forge:ores/', '"c:ores/')
+                .replace('"forge:ore_rates/', '"c:ore_rates/')
+                .replace('"match": "forge:', '"match": "c:')
+                .replace('"ignore": "forge:', '"ignore": "c:')
+                .replace('"minecraft:scute"', '"minecraft:turtle_scute"')
+                .replace('"fluid": "minecraft:milk"', '"tag": "c:milk"')
+                .replace('"condition": "forge:can_tool_perform_action"', '"condition": "neoforge:can_item_perform_ability"')
+                .replace('"action": "shears_dig"', '"ability": "shears_dig"')
+                .replace('c:tools/bows', 'c:tools/bow')
+                .replace('c:tools/crossbows', 'c:tools/crossbow')
+                .replace('c:tools/fishing_rods', 'c:tools/fishing_rod')
+                .replace('c:tools/shields', 'c:tools/shield')
+                .replace('c:tools/tridents', 'c:tools/spear')
+                .replace('"#c:gravel"', '"#c:gravels"')
+                .replace('"c:gravel"', '"c:gravels"')
+        }
+    }
+    exclude 'assets/tconstruct/book/encyclopedia/fr_fr/abilities/interact/tconstruct_bonking.json'
+    exclude 'assets/tconstruct/book/encyclopedia/pt_br/armor/tconstruct_slime_helmet.json'
+    exclude 'assets/tconstruct/book/encyclopedia/pt_br/armor/tconstruct_slime_leggings.json'
+    exclude 'assets/tconstruct/book/encyclopedia/ru_ru/abilities/armor/general/tconstruct_protection.json'
+    exclude 'assets/tconstruct/book/encyclopedia/ru_ru/abilities/armor/helmet/tconstruct_slurping.json'
+    exclude 'assets/tconstruct/book/encyclopedia/ru_ru/abilities/armor/leggings/tconstruct_soul_belt.json'
+    exclude 'assets/tconstruct/book/mighty_smelting/pt_br/abilities/armor/helmet/tconstruct_slurping.json'
+    exclude 'assets/tconstruct/book/mighty_smelting/pt_br/abilities/interact/tconstruct_bucketing.json'
+    exclude 'assets/tconstruct/book/mighty_smelting/tr_tr/abilities/interact/tconstruct_stripping.json'
     from('src/main/resources/pack.mcmeta')
     from(rootProject.file('porting/upstream/tconstruct-1.20.1/src/main/resources/data/tconstruct/recipes')) {
-        include 'smeltery/melting/metal/iron/ingot.json'
-        include 'smeltery/melting/metal/iron/nugget.json'
-        include 'smeltery/melting/metal/iron/block.json'
-        include 'smeltery/melting/metal/iron/raw.json'
-        include 'smeltery/melting/metal/iron/raw_block.json'
+        filter { line ->
+            line.replace('"conditions": [', '"neoforge:conditions": [')
+        }
+        include '**/*.json'
         into 'data/tconstruct/recipe'
     }
     from(rootProject.file('porting/upstream/tconstruct-1.20.1/src/generated/resources/data/tconstruct/recipes')) {
-        include 'smeltery/melting/metal/iron/ingot.json'
-        include 'smeltery/melting/metal/iron/nugget.json'
-        include 'smeltery/melting/metal/iron/block.json'
-        include 'smeltery/melting/metal/iron/raw.json'
-        include 'smeltery/melting/metal/iron/raw_block.json'
+        filter { line ->
+            line.replace('"conditions": [', '"neoforge:conditions": [')
+        }
+        include '**/*.json'
         into 'data/tconstruct/recipe'
+    }
+    doLast {
+        def langDir = new File(destinationDir, 'assets/tconstruct/lang')
+        if (langDir.exists()) {
+            langDir.eachFileMatch(groovy.io.FileType.FILES, ~/.*\.json/) { langFile ->
+                def parsedLang = new groovy.json.JsonSlurper().parse(langFile)
+                if (parsedLang instanceof Map) {
+                    parsedLang.putIfAbsent('config.jade.plugin_tconstruct.smeltery_info', 'Smeltery information')
+                    langFile.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(parsedLang)) + '\n'
+                }
+            }
+        }
+
+        def recipesDir = new File(destinationDir, 'data/tconstruct/recipe')
+        if (!recipesDir.exists()) {
+            return
+        }
+
+        def vanillaStackResultTypes = [
+            'minecraft:crafting_shaped',
+            'minecraft:crafting_shapeless',
+            'minecraft:smelting',
+            'minecraft:blasting',
+            'minecraft:smoking',
+            'minecraft:campfire_cooking',
+            'minecraft:stonecutting',
+            'mantle:crafting_shaped_retextured'
+        ] as Set
+
+        Closure normalizeVanillaStack = { Object node ->
+            if (node instanceof Map && node.item instanceof CharSequence && !node.containsKey('id')) {
+                Map converted = new LinkedHashMap(node)
+                converted.id = converted.remove('item')
+                return converted
+            }
+            if (node instanceof CharSequence) {
+                return [id: node.toString()]
+            }
+            return node
+        }
+
+        Closure addTagFilledCondition = { Map recipe, String tag, String registry = null ->
+            def conditions = recipe.'neoforge:conditions'
+            if (!(conditions instanceof List)) {
+                conditions = []
+            }
+            boolean hasTagCondition = conditions.any { condition ->
+                condition instanceof Map
+                    && condition.type == 'mantle:tag_filled'
+                    && condition.tag == tag
+                    && (registry == null || condition.registry == registry)
+            }
+            if (!hasTagCondition) {
+                Map condition = [type: 'mantle:tag_filled', tag: tag]
+                if (registry != null) {
+                    condition.registry = registry
+                }
+                conditions = [condition] + conditions
+            }
+            recipe.'neoforge:conditions' = conditions
+        }
+
+        Closure normalize
+        normalize = { Object node, String key ->
+            if (node instanceof Map) {
+                if (node.type == 'neoforge:conditional' && node.recipes instanceof List) {
+                    def fallback = node.recipes.find { entry ->
+                        entry instanceof Map && entry.'neoforge:conditions' instanceof List
+                            && entry.'neoforge:conditions'.any { condition -> condition instanceof Map && condition.type == 'neoforge:true' }
+                    }
+                    if (fallback == null) {
+                        fallback = node.recipes.find { entry -> entry instanceof Map && entry.recipe instanceof Map }
+                    }
+                    if (fallback instanceof Map && fallback.recipe instanceof Map) {
+                        return normalize(fallback.recipe, key)
+                    }
+                }
+
+                Map normalized = node.collectEntries { entry ->
+                    [(entry.key): normalize(entry.value, entry.key as String)]
+                }
+                if (vanillaStackResultTypes.contains(normalized.type) && normalized.containsKey('result')) {
+                    normalized.result = normalizeVanillaStack(normalized.result)
+                }
+                if ((normalized.type == 'neoforge:intersection' || normalized.type == 'neoforge:compound') && normalized.children instanceof List) {
+                    normalized.children = normalized.children.collect { child ->
+                        child instanceof List ? [type: 'neoforge:compound', children: child] : child
+                    }
+                }
+                if ((normalized.type == 'neoforge:intersection' || normalized.type == 'neoforge:compound') && normalized.ingredients instanceof List) {
+                    normalized.ingredients = normalized.ingredients.collect { child ->
+                        child instanceof List ? [type: 'neoforge:compound', children: child] : child
+                    }
+                }
+                if ((normalized.type == 'tconstruct:casting_basin' || normalized.type == 'tconstruct:casting_table')
+                    && normalized.result instanceof Map && normalized.result.tag instanceof CharSequence) {
+                    addTagFilledCondition(normalized, normalized.result.tag.toString(), null)
+                }
+                if ((normalized.type == 'tconstruct:melting' || normalized.type == 'tconstruct:ore_melting'
+                    || normalized.type == 'tconstruct:damagable_melting' || normalized.type == 'tconstruct:material_melting'
+                    || normalized.type == 'tconstruct:entity_melting' || normalized.type == 'tconstruct:alloy')
+                    && normalized.result instanceof Map && normalized.result.tag instanceof CharSequence) {
+                    addTagFilledCondition(normalized, normalized.result.tag.toString(), 'minecraft:fluid')
+                }
+                return normalized
+            }
+            if (node instanceof List) {
+                return node.collect { value -> normalize(value, key) }
+            }
+            return node
+        }
+
+        recipesDir.eachFileRecurse(groovy.io.FileType.FILES) { recipeFile ->
+            if (!recipeFile.name.endsWith('.json')) {
+                return
+            }
+            def parsed = new groovy.json.JsonSlurper().parse(recipeFile)
+            recipeFile.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(normalize(parsed, null))) + '\n'
+        }
     }
 }
 
@@ -90,6 +279,7 @@ dependencies {
 
     compileOnly "mezz.jei:jei-${rootProject.minecraft_version}-common-api:${jei_version}"
     compileOnly "mezz.jei:jei-${rootProject.minecraft_version}-neoforge-api:${jei_version}"
+    compileOnly "maven.modrinth:nvQzSEkH:${jade_version_id}"
 }
 
 var generateTConstructModMetadata = tasks.register('generateTConstructModMetadata', ProcessResources) {
@@ -120,6 +310,10 @@ tasks.withType(JavaCompile).configureEach {
 
 java {
     withSourcesJar()
+}
+
+tasks.named('sourcesJar').configure {
+    exclude 'data/tconstruct/tinkering/modifiers/sticky.json'
 }
 
 publishing {

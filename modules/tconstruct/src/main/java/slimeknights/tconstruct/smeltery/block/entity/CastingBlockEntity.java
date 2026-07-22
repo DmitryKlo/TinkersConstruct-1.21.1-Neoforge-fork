@@ -186,6 +186,10 @@ public abstract class CastingBlockEntity extends TableBlockEntity implements Wor
         player.setItemInHand(hand, held.isEmpty() ? ItemStack.EMPTY : held);
         setItem(INPUT, stack);
       }
+    } else if (!held.isEmpty() && input.isEmpty() && currentRecipe == null) {
+      ItemStack stack = held.split(stackSizeLimit);
+      player.setItemInHand(hand, held.isEmpty() ? ItemStack.EMPTY : held);
+      setItem(INPUT, stack);
     } else {
       // stack in either slot, take one out
       // prefer output stack, as often the input is a cast that we want to use again
@@ -209,6 +213,9 @@ public abstract class CastingBlockEntity extends TableBlockEntity implements Wor
   public void setItem(int slot, ItemStack stack) {
     ItemStack original = getItem(slot);
     super.setItem(slot, stack);
+    if (slot == INPUT || slot == OUTPUT) {
+      lastOutput = null;
+    }
     // if the stack changed emptiness, update
     if (original.isEmpty() != stack.isEmpty()) {
       updateAnalogSignal();
@@ -219,6 +226,9 @@ public abstract class CastingBlockEntity extends TableBlockEntity implements Wor
       BlockState state = getBlockState();
       if (state.getValue(AbstractCastingBlock.HAS_ITEM) != hasItem) {
         level.setBlockAndUpdate(worldPosition, state.setValue(AbstractCastingBlock.HAS_ITEM, hasItem));
+      }
+      if ((slot == INPUT || slot == OUTPUT) && original.isEmpty() != stack.isEmpty()) {
+        tryStartCastingFromTank();
       }
     }
   }
@@ -426,6 +436,22 @@ public abstract class CastingBlockEntity extends TableBlockEntity implements Wor
     return 0;
   }
 
+  /** Starts a casting recipe after the player changes the cast/input while fluid is already in the table. */
+  private void tryStartCastingFromTank() {
+    if (level == null || level.isClientSide || currentRecipe != null || recipeName != null || tank.isEmpty()) {
+      return;
+    }
+    FluidStack fluid = tank.getFluid();
+    if (fluid.isEmpty()) {
+      return;
+    }
+    int capacity = initNewCasting(fluid, FluidAction.EXECUTE);
+    if (capacity > 0) {
+      tank.setCapacity(capacity);
+      onContentsChanged();
+    }
+  }
+
   /**
    * Resets the casting table recipe to the default empty state
    */
@@ -441,6 +467,7 @@ public abstract class CastingBlockEntity extends TableBlockEntity implements Wor
 
   /** Called when tank contents change */
   public void onContentsChanged() {
+    lastOutput = null;
     // start timer
     FluidStack fluidStack = tank.getFluid();
     if (fluidStack.getAmount() >= tank.getCapacity() && currentRecipe != null) {
@@ -592,7 +619,7 @@ public abstract class CastingBlockEntity extends TableBlockEntity implements Wor
   @Override
   protected void loadAdditional(CompoundTag tags, HolderLookup.Provider registries) {
     super.loadAdditional(tags, registries);
-    tank.readFromTag(tags.getCompound(TAG_TANK));
+    tank.readFromTag(tags.getCompound(TAG_TANK), registries);
     timer = tags.getInt(TAG_TIMER);
     if (tags.contains(TAG_RECIPE, CompoundTag.TAG_STRING)) {
       ResourceLocation name = ResourceLocation.parse(tags.getString(TAG_RECIPE));

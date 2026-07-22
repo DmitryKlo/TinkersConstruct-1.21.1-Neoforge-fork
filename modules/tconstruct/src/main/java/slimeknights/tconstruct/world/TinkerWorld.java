@@ -104,6 +104,7 @@ import slimeknights.tconstruct.world.item.EndermanHeadItem;
 import slimeknights.tconstruct.world.item.SlimeGrassSeedItem;
 import slimeknights.tconstruct.world.worldgen.trees.SlimeTree;
 
+import java.lang.reflect.Field;
 import java.util.EnumMap;
 import java.util.Map;
 import java.util.function.BiConsumer;
@@ -380,6 +381,7 @@ public final class TinkerWorld extends TinkerModule {
         }
       };
       TinkerWorld.heads.forEach(head -> DispenserBlock.registerBehavior(head, dispenseArmor));
+      addSkullBlockEntityBlocks();
       // TODO 1.21.1: restore custom firework head shapes via new API, if exposed.
     });
 
@@ -530,5 +532,34 @@ public final class TinkerWorld extends TinkerModule {
   /** Properties for a cluster of shards. */
   private static Properties clusterProps() {
     return BlockBehaviour.Properties.of().forceSolidOn().noOcclusion().randomTicks().strength(2.5f).requiresCorrectToolForDrops().pushReaction(PushReaction.DESTROY);
+  }
+
+  /** Adds TConstruct head blocks to the vanilla skull block entity whitelist. */
+  private static void addSkullBlockEntityBlocks() {
+    try {
+      Field validBlocksField = blockEntityTypeField("validBlocks", "f_58915_");
+      @SuppressWarnings("unchecked")
+      Iterable<Block> validBlocks = (Iterable<Block>)validBlocksField.get(BlockEntityType.SKULL);
+      validBlocksField.set(BlockEntityType.SKULL, ImmutableSet.<Block>builder()
+        .addAll(validBlocks)
+        .addAll(TinkerWorld.heads.values())
+        .addAll(TinkerWorld.wallHeads.values())
+        .build());
+    } catch (ReflectiveOperationException | ClassCastException e) {
+      throw new IllegalStateException("Unable to register TConstruct heads as skull block entities", e);
+    }
+  }
+
+  private static Field blockEntityTypeField(String... names) throws NoSuchFieldException {
+    for (String name : names) {
+      try {
+        Field field = BlockEntityType.class.getDeclaredField(name);
+        field.setAccessible(true);
+        return field;
+      } catch (NoSuchFieldException ignored) {
+        // try the next mapped name
+      }
+    }
+    throw new NoSuchFieldException(String.join(", ", names));
   }
 }

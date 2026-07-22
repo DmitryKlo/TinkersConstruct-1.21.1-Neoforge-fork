@@ -1,7 +1,9 @@
 package slimeknights.mantle.recipe.condition;
 
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
@@ -10,6 +12,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.neoforged.neoforge.common.conditions.ICondition;
+import slimeknights.mantle.data.JsonCodec;
 import slimeknights.mantle.recipe.ingredient.compat.IConditionSerializer;
 import slimeknights.mantle.Mantle;
 import slimeknights.mantle.data.loadable.Loadable;
@@ -30,6 +33,19 @@ import java.util.List;
 @SuppressWarnings("unused")
 public record TagCombinationCondition<T>(List<TagKey<T>> match, @Nullable TagKey<T> ignore) implements ICondition {
   public static final ResourceLocation ID = Mantle.getResource("tag_combination_filled");
+  public static final MapCodec<TagCombinationCondition<?>> CODEC = MapCodec.assumeMapUnsafe(new JsonCodec<>() {
+    @Override
+    public TagCombinationCondition<?> deserialize(JsonElement element, DynamicOps<?> ops) {
+      return SERIALIZER.read(element.getAsJsonObject());
+    }
+
+    @Override
+    public JsonElement serialize(TagCombinationCondition<?> object, DynamicOps<?> ops) {
+      JsonObject json = new JsonObject();
+      SERIALIZER.write(json, object);
+      return json;
+    }
+  });
 
   public TagCombinationCondition {
     if (match.isEmpty()) {
@@ -61,7 +77,7 @@ public record TagCombinationCondition<T>(List<TagKey<T>> match, @Nullable TagKey
 
   @Override
   public MapCodec<? extends ICondition> codec() {
-    return MapCodec.unit(this);
+    return CODEC;
   }
 
   @Override

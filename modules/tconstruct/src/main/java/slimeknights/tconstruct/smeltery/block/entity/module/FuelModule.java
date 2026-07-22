@@ -18,6 +18,7 @@ import slimeknights.tconstruct.library.recipe.fuel.MeltingFuel;
 import slimeknights.tconstruct.library.recipe.fuel.MeltingFuelLookup;
 
 import javax.annotation.Nullable;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -110,24 +111,26 @@ public abstract class FuelModule implements ContainerData {
    * @return   Temperature of the consumed fuel, 0 if none found
    */
   protected int tryLiquidFuel(IFluidHandler handler, boolean consume) {
-    FluidStack fluid = handler.getFluidInTank(0);
-    MeltingFuel recipe = findRecipe(fluid.getFluid());
-    if (recipe != null) {
-      int amount = recipe.getAmount(fluid.getFluid());
-      if (fluid.getAmount() >= amount) {
-        if (consume) {
-          FluidStack drained = handler.drain(fluid.copyWithAmount(amount), FluidAction.EXECUTE);
-          if (drained.getAmount() != amount) {
-            TConstruct.LOG.error("Invalid amount of fuel drained from tank");
+    for (int tank = 0; tank < handler.getTanks(); tank++) {
+      FluidStack fluid = handler.getFluidInTank(tank);
+      MeltingFuel recipe = findRecipe(fluid.getFluid());
+      if (recipe != null) {
+        int amount = recipe.getAmount(fluid.getFluid());
+        if (fluid.getAmount() >= amount) {
+          if (consume) {
+            FluidStack drained = handler.drain(fluid.copyWithAmount(amount), FluidAction.EXECUTE);
+            if (drained.getAmount() != amount) {
+              TConstruct.LOG.error("Invalid amount of fuel drained from tank");
+            }
+            fuel += recipe.getDuration();
+            fuelQuality = recipe.getDuration();
+            temperature = recipe.getTemperature();
+            rate = recipe.getRate();
+            parent.setChangedFast();
+            return temperature;
+          } else {
+            return recipe.getTemperature();
           }
-          fuel += recipe.getDuration();
-          fuelQuality = recipe.getDuration();
-          temperature = recipe.getTemperature();
-          rate = recipe.getRate();
-          parent.setChangedFast();
-          return temperature;
-        } else {
-          return recipe.getTemperature();
         }
       }
     }
@@ -214,15 +217,25 @@ public abstract class FuelModule implements ContainerData {
     if (fluidHandler == null) {
       return FuelInfo.EMPTY;
     }
-    FluidStack fluid = fluidHandler.getFluidInTank(0);
-    int temperature = 0;
-    if (!fluid.isEmpty()) {
-      MeltingFuel fuel = findRecipe(fluid.getFluid());
-      if (fuel != null) {
-        temperature = fuel.getTemperature();
+    for (int tank = 0; tank < fluidHandler.getTanks(); tank++) {
+      FluidStack fluid = fluidHandler.getFluidInTank(tank);
+      if (!fluid.isEmpty()) {
+        MeltingFuel fuel = findRecipe(fluid.getFluid());
+        if (fuel != null) {
+          return FuelInfo.of(fluid, fluidHandler.getTankCapacity(tank), fuel.getTemperature());
+        }
       }
     }
-    return FuelInfo.of(fluid, fluidHandler.getTankCapacity(0), temperature);
+    return FuelInfo.EMPTY;
+  }
+
+  /**
+   * Called client side to get all visible fuel fluids for the current tank display.
+   * @return  Fuel info entries, grouped by fluid for multitank fuel modules
+   */
+  public List<FuelInfo> getFuelInfos() {
+    FuelInfo info = getFuelInfo();
+    return info.isEmpty() ? List.of() : List.of(info);
   }
 
   /** Data class to hold information about the current fuel */
@@ -246,10 +259,22 @@ public abstract class FuelModule implements ContainerData {
      * @return  Fuel info
      */
     public static FuelInfo of(FluidStack fluid, int capacity, int temperature) {
+      return of(fluid, fluid.getAmount(), capacity, temperature);
+    }
+
+    /**
+     * Gets fuel info from the given stack with an amount override
+     * @param fluid       Fluid
+     * @param amount      Total fluid amount
+     * @param capacity    Capacity
+     * @param temperature Fuel temperature
+     * @return  Fuel info
+     */
+    public static FuelInfo of(FluidStack fluid, int amount, int capacity, int temperature) {
       if (fluid.isEmpty()) {
         return EMPTY;
       }
-      return new FuelInfo(fluid, fluid.getAmount(), Math.max(capacity, fluid.getAmount()), temperature);
+      return new FuelInfo(fluid.copyWithAmount(amount), amount, Math.max(capacity, amount), temperature);
     }
 
     /**
@@ -260,6 +285,11 @@ public abstract class FuelModule implements ContainerData {
     protected void add(int amount, int capacity) {
       this.totalAmount += amount;
       this.capacity += capacity;
+    }
+
+    /** Sets the total display capacity */
+    protected void setCapacity(int capacity) {
+      this.capacity = Math.max(capacity, totalAmount);
     }
 
     /**

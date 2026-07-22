@@ -14,6 +14,8 @@ import slimeknights.tconstruct.library.tools.capability.ToolCapabilityProvider.I
 import slimeknights.tconstruct.library.tools.nbt.IModDataView;
 import slimeknights.tconstruct.library.tools.nbt.IToolStackView;
 import slimeknights.tconstruct.library.tools.nbt.ModDataNBT;
+import slimeknights.tconstruct.library.tools.nbt.ToolStack;
+import slimeknights.mantle.util.StackDataHelper;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -112,7 +114,19 @@ public class ToolFluidCapability extends FluidModifierHookIterator<ModifierEntry
 
   @Override
   public int fill(FluidStack resource, FluidAction action) {
-    return fill(tool.get(), resource, action);
+    IToolStackView tool = this.tool.get();
+    int filled = fill(tool, resource, action);
+    if (filled > 0) {
+      saveTool(tool, action);
+    }
+    return filled;
+  }
+
+  /** Writes executed capability changes back to the item stack's data component. */
+  private void saveTool(IToolStackView tool, FluidAction action) {
+    if (action.execute() && tool instanceof ToolStack toolStack) {
+      StackDataHelper.setTag(container, StackDataHelper.getTag(toolStack.createStack(container.getCount())));
+    }
   }
 
   /** Scales the result for the given stack size */
@@ -133,7 +147,12 @@ public class ToolFluidCapability extends FluidModifierHookIterator<ModifierEntry
     if (size > 1) {
       resource = resource.copyWithAmount(resource.getAmount() / size);
     }
-    return scaleResult(drain(tool.get(), resource, action), size);
+    IToolStackView tool = this.tool.get();
+    FluidStack drained = scaleResult(drain(tool, resource, action), size);
+    if (!drained.isEmpty()) {
+      saveTool(tool, action);
+    }
+    return drained;
   }
 
   @Nonnull
@@ -143,7 +162,12 @@ public class ToolFluidCapability extends FluidModifierHookIterator<ModifierEntry
       return FluidStack.EMPTY;
     }
     int size = container.getCount();
-    return scaleResult(drain(tool.get(), maxDrain / size, action), size);
+    IToolStackView tool = this.tool.get();
+    FluidStack drained = scaleResult(drain(tool, maxDrain / size, action), size);
+    if (!drained.isEmpty()) {
+      saveTool(tool, action);
+    }
+    return drained;
   }
 
   /** Adds the tanks from the fluid modifier to the tool */

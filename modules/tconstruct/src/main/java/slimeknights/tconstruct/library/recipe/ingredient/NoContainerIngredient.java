@@ -65,7 +65,9 @@ public class NoContainerIngredient extends NestedIngredient {
       if (json.has("match")) {
         ingredient = CraftingHelper.getIngredient(json.get("match"), false);
       } else {
-        ingredient = VanillaIngredientSerializer.INSTANCE.parse(json);
+        JsonObject vanilla = json.deepCopy();
+        vanilla.remove("type");
+        ingredient = VanillaIngredientSerializer.INSTANCE.parse(vanilla);
       }
       return new NoContainerIngredient(ingredient);
     }

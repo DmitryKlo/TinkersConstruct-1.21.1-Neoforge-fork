@@ -1,0 +1,30 @@
+{
+  "type": "tconstruct:modifier",
+  "allow_crystal": true,
+  "check_trait_level": true,
+  "inputs": [
+    {
+      "item": "minecraft:weeping_vines"
+    },
+    {
+      "item": "tconstruct:ichor_slime_crystal"
+    },
+    {
+      "item": "minecraft:weeping_vines"
+    },
+    {
+      "item": "tconstruct:ichor_congealed_slime"
+    },
+    {
+      "item": "tconstruct:ichor_congealed_slime"
+    }
+  ],
+  "level": 1,
+  "result": "tconstruct:bonking",
+  "slots": {
+    "abilities": 1
+  },
+  "tools": {
+    "tag": "tconstruct:modifiable/interactable/charge"
+  }
+}

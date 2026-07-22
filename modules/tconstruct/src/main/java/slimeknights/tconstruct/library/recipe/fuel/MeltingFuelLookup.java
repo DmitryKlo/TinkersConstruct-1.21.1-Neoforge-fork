@@ -6,6 +6,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.world.level.material.Fluids;
+import slimeknights.mantle.Mantle;
 import slimeknights.mantle.recipe.ingredient.FluidIngredient;
 import slimeknights.tconstruct.TConstruct;
 import slimeknights.tconstruct.common.recipe.RecipeCacheInvalidator;
@@ -23,12 +24,15 @@ import java.util.function.Function;
  */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class MeltingFuelLookup {
+  private static final ResourceLocation NETWORK_ID = Mantle.getResource("network");
   private static final ResourceLocation LAVA_ID = ResourceLocation.withDefaultNamespace("lava");
   private static final ResourceLocation BLAZING_BLOOD_ID = TConstruct.getResource("blazing_blood");
   /** Dummy fuel instance sine caches don't support caching null */
   private static final MeltingFuel EMPTY = new MeltingFuel(ResourceLocation.parse("missingno"), FluidIngredient.EMPTY, 0, 0, 0);
   /** Temperature for solid fuels in the heater */
   private static MeltingFuel SOLID = EMPTY;
+  /** True once the client starts rebuilding this lookup from network-synced recipes. */
+  private static boolean loadingNetworkRecipes = false;
   /** List of all recipes */
   private static final List<MeltingFuel> RECIPES = new ArrayList<>();
   /** Mapping from fluid to fuel */
@@ -47,11 +51,15 @@ public class MeltingFuelLookup {
     return EMPTY;
   };
   /** Listener to check when recipes reload */
-  private static final DuelSidedListener LISTENER = RecipeCacheInvalidator.addDuelSidedListener(() -> {
+  private static final DuelSidedListener LISTENER = RecipeCacheInvalidator.addDuelSidedListener(MeltingFuelLookup::clearLookup);
+
+  /** Clears all fuel recipe caches and reload state. */
+  private static void clearLookup() {
     SOLID = EMPTY;
+    loadingNetworkRecipes = false;
     RECIPES.clear();
     CACHE.clear();
-  });
+  }
 
   /**
    * Adds a melting fuel to the lookup
@@ -63,6 +71,14 @@ public class MeltingFuelLookup {
       return;
     }
     LISTENER.checkClear();
+    if (NETWORK_ID.equals(fuel.getId())) {
+      if (!loadingNetworkRecipes) {
+        clearLookup();
+        loadingNetworkRecipes = true;
+      }
+    } else {
+      loadingNetworkRecipes = false;
+    }
     if (fuel.getInput() != FluidIngredient.EMPTY) {
       RECIPES.add(fuel);
     } else if (SOLID == EMPTY) {
@@ -74,7 +90,7 @@ public class MeltingFuelLookup {
 
   /** Checks if the given fluid is a fuel */
   public static boolean isFuel(Fluid fluid) {
-    return CACHE.computeIfAbsent(fluid, LOOKUP) != EMPTY;
+    return getCachedFuel(fluid) != EMPTY;
   }
 
   /** Gets the properties for solid fuel */
@@ -105,9 +121,19 @@ public class MeltingFuelLookup {
    */
   @Nullable
   public static MeltingFuel findFuel(Fluid fluid) {
-    MeltingFuel recipe = CACHE.computeIfAbsent(fluid, LOOKUP);
+    MeltingFuel recipe = getCachedFuel(fluid);
     if (recipe == EMPTY) {
       return null;
+    }
+    return recipe;
+  }
+
+  /** Gets a cached fuel recipe, computing outside the map mutation path to allow recipe reload invalidation during fallback creation. */
+  private static MeltingFuel getCachedFuel(Fluid fluid) {
+    MeltingFuel recipe = CACHE.get(fluid);
+    if (recipe == null) {
+      recipe = LOOKUP.apply(fluid);
+      CACHE.put(fluid, recipe);
     }
     return recipe;
   }

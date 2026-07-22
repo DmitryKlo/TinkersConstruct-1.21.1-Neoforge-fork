@@ -26,6 +26,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.Vec3;
 import slimeknights.tconstruct.TConstruct;
 import slimeknights.tconstruct.common.Sounds;
 import slimeknights.tconstruct.common.TinkerTags;
@@ -210,6 +211,27 @@ public class ThrownTool extends ThrownTrident implements ToolProjectile {
       }
         tconstructDealtDamage = true;
     }
+
+    // Vanilla trident return logic checks its private loyalty data accessor, so TConstruct loyalty
+    // needs its own return path based on the synced modifier-derived value.
+    int loyalty = this.entityData.get(TCONSTRUCT_LOYALTY);
+    Entity owner = this.getOwner();
+    if (loyalty > 0 && (tconstructDealtDamage || this.isNoPhysics()) && owner != null) {
+      if (!isAcceptableReturnOwner(owner)) {
+        if (!this.level().isClientSide && this.pickup == AbstractArrow.Pickup.ALLOWED) {
+          this.spawnAtLocation(this.getPickupItem(), 0.1F);
+        }
+        this.discard();
+      } else {
+        this.setNoPhysics(true);
+        Vec3 target = owner.getEyePosition().subtract(this.position());
+        this.setPosRaw(this.getX(), this.getY() + target.y * 0.015 * (double)loyalty, this.getZ());
+        if (this.level().isClientSide) {
+          this.yOld = this.getY();
+        }
+        this.setDeltaMovement(this.getDeltaMovement().scale(0.95).add(target.normalize().scale(0.05 * (double)loyalty)));
+      }
+    }
     super.tick();
 
     // magnet
@@ -221,6 +243,11 @@ public class ThrownTool extends ThrownTrident implements ToolProjectile {
     if (!tasks.isEmpty() && !tridentItem.isEmpty()) {
       ScheduledProjectileTaskModifierHook.checkSchedule(getTool(), tridentItem, this, null, tasks);
     }
+  }
+
+  /** Checks if the owner can receive a returning thrown tool. */
+  private static boolean isAcceptableReturnOwner(Entity owner) {
+    return owner.isAlive() && (!(owner instanceof ServerPlayer player) || !player.isSpectator());
   }
 
   @Override

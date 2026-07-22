@@ -67,9 +67,10 @@ public class CastingBlockEntityRenderer implements BlockEntityRenderer<CastingBl
 
       // render renderItems
       if (!renderItems.isEmpty()) {
-        // render renderItems
-        // input is normal
-        RenderingHelper.renderItem(matrices, buffer, casting.getItem(0), renderItems.get(0), light);
+        // While cooling, show the result forming in the fluid instead of lifting the cast above it.
+        if (itemOpacity <= 0) {
+          RenderingHelper.renderItem(matrices, buffer, casting.getItem(0), renderItems.get(0), light);
+        }
 
         // output may be the recipe output instead of the current item
         if (renderItems.size() >= 2) {

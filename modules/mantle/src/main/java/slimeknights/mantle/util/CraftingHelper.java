@@ -123,7 +123,10 @@ public final class CraftingHelper {
   }
 
   private static boolean processCondition(JsonObject json) {
-    String type = GsonHelper.getAsString(json, "type", "neoforge:true").replace("forge:", "neoforge:");
+    String type = GsonHelper.getAsString(json, "type", "neoforge:true");
+    if (type.startsWith("forge:")) {
+      type = "neoforge:" + type.substring("forge:".length());
+    }
     return switch (type) {
       case "neoforge:true" -> true;
       case "neoforge:false" -> false;

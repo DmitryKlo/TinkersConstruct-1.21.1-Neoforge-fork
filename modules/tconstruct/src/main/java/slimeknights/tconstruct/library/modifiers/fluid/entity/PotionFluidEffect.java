@@ -2,7 +2,6 @@ package slimeknights.tconstruct.library.modifiers.fluid.entity;
 
 import net.minecraft.world.effect.MobEffect;
 import net.minecraft.world.effect.MobEffectInstance;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import slimeknights.mantle.util.PotionHelper;
@@ -33,7 +32,7 @@ public record PotionFluidEffect(float scale, TagPredicate predicate) implements 
   public float apply(FluidStack fluid, EffectLevel level, FluidEffectContext.Entity context, FluidAction action) {
     LivingEntity target = context.getLivingTarget();
     // must match the tag predicate
-    CompoundTag tag = new CompoundTag();
+    var tag = PotionHelper.getTag(fluid);
     if (target != null && predicate.test(tag)) {
       var potion = PotionHelper.getPotion(tag);
       List<MobEffectInstance> effects = potion != null ? potion.getEffects() : List.of();

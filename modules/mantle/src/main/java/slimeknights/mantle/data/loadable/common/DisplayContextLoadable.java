@@ -18,7 +18,7 @@ public enum DisplayContextLoadable implements ResourceLocationLoadable<ItemDispl
   @Override
   public ItemDisplayContext fromKey(ResourceLocation name, String key, TypedMap context) {
     for (ItemDisplayContext value : ItemDisplayContext.values()) {
-      if (name.getPath().equals(value.getSerializedName())) {
+      if (name.toString().equals(value.getSerializedName()) || name.getPath().equals(value.getSerializedName())) {
         return value;
       }
     }

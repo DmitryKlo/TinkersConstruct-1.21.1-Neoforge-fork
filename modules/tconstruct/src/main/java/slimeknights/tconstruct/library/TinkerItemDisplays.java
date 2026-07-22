@@ -1,7 +1,6 @@
 package slimeknights.tconstruct.library;
 
 import net.minecraft.world.item.ItemDisplayContext;
-import slimeknights.tconstruct.TConstruct;
 
 import java.util.Locale;
 
@@ -10,7 +9,7 @@ public class TinkerItemDisplays {
   private TinkerItemDisplays() {}
 
   public static void init() {
-    // contexts are registered via ItemDisplayContext.create as extensible enums
+    // contexts are injected via META-INF/enumextensions.json before mod construction
   }
 
   /** Used by the melter and smeltery for display of items its melting */
@@ -28,6 +27,11 @@ public class TinkerItemDisplays {
 
   /** Creates a transform type */
   private static ItemDisplayContext create(String name, ItemDisplayContext fallback) {
-    return fallback;
+    String key = "TCONSTRUCT_" + name.toUpperCase(Locale.ROOT);
+    try {
+      return ItemDisplayContext.valueOf(key);
+    } catch (IllegalArgumentException e) {
+      return fallback;
+    }
   }
 }
